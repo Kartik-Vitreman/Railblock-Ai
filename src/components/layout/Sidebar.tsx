@@ -12,124 +12,290 @@ import {
   Film,
   FileText,
   MapPin,
+  X,
+  HardHat,
+  Radio,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth'
+import { useTranslation } from '@/lib/i18n'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 interface NavItem {
-  label: string
+  labelKey: string
+  defaultLabel: string
   path: string
   icon: any
   badge?: string
+  priorityForRole?: 'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS'
+  tooltipDesc: string
 }
 
 interface NavSection {
-  title: string
+  titleKey: string
+  defaultTitle: string
   items: NavItem[]
 }
 
 const navSections: NavSection[] = [
   {
-    title: 'OPERATIONS',
+    titleKey: 'nav.operations',
+    defaultTitle: 'OPERATIONS',
     items: [
-      { label: 'Train Operations', path: '/trains', icon: Train },
-      { label: 'Block Planning', path: '/blocks', icon: CalendarDays },
-      { label: 'Schedule & Roster', path: '/network', icon: MapPin },
+      {
+        labelKey: 'nav.trains',
+        defaultLabel: 'Train Operations',
+        path: '/trains',
+        icon: Train,
+        priorityForRole: 'OPERATIONS',
+        tooltipDesc: 'Real-time train monitoring, timetable regulation, and Kavach ATP status',
+      },
+      {
+        labelKey: 'nav.blocks',
+        defaultLabel: 'Block Planning',
+        path: '/blocks',
+        icon: CalendarDays,
+        priorityForRole: 'OPERATIONS',
+        tooltipDesc: 'Interactive corridor possession scheduling and timetable clash detection',
+      },
+      {
+        labelKey: 'nav.network',
+        defaultLabel: 'Schedule & National GIS',
+        path: '/network',
+        icon: MapPin,
+        priorityForRole: 'OPERATIONS',
+        tooltipDesc: 'Pan-India 17-zone network map, junctions, and live line block overlays',
+      },
     ],
   },
   {
-    title: 'MAINTENANCE',
+    titleKey: 'nav.maintenance',
+    defaultTitle: 'MAINTENANCE',
     items: [
-      { label: 'Maintenance Requests', path: '/maintenance', icon: Wrench },
-      { label: 'Asset Intelligence', path: '/assets', icon: Database },
-      { label: 'Operational Alerts', path: '/alerts', icon: AlertTriangle },
+      {
+        labelKey: 'nav.maint_requests',
+        defaultLabel: 'Maintenance Requests',
+        path: '/maintenance',
+        icon: Wrench,
+        priorityForRole: 'WORKERS',
+        tooltipDesc: 'File P-Way work orders, rail renewal requisitions, and machine slots',
+      },
+      {
+        labelKey: 'nav.assets',
+        defaultLabel: 'Asset Intelligence',
+        path: '/assets',
+        icon: Database,
+        priorityForRole: 'WORKERS',
+        tooltipDesc: 'Track condition index (TGI), USFD rail defect logs, and bridge assets',
+      },
+      {
+        labelKey: 'nav.alerts',
+        defaultLabel: 'Operational Alerts',
+        path: '/alerts',
+        icon: AlertTriangle,
+        tooltipDesc: 'Caution orders, temporary speed restrictions (TSR), and safety alarms',
+      },
     ],
   },
   {
-    title: 'AI & DECISION SUPPORT',
+    titleKey: 'nav.ai_support',
+    defaultTitle: 'AI & DECISION SUPPORT',
     items: [
-      { label: 'Plan Optimization', path: '/optimization', icon: GitCompare, badge: 'CP-SAT' },
-      { label: 'What-If Simulation', path: '/simulation', icon: Film },
-      { label: 'Scenario Catalog', path: '/scenarios', icon: ClipboardList },
-      { label: 'Official Reports', path: '/reports', icon: FileText },
+      {
+        labelKey: 'nav.optimization',
+        defaultLabel: 'Plan Optimization',
+        path: '/optimization',
+        icon: GitCompare,
+        badge: 'CP-SAT',
+        priorityForRole: 'ADMINISTRATION',
+        tooltipDesc: 'Google OR-Tools CP-SAT discrete optimization for zero-conflict block plans',
+      },
+      {
+        labelKey: 'nav.simulation',
+        defaultLabel: 'What-If Simulation',
+        path: '/simulation',
+        icon: Film,
+        tooltipDesc: 'Simulate cascading train delays under varying maintenance duration windows',
+      },
+      {
+        labelKey: 'nav.scenarios',
+        defaultLabel: 'Scenario Catalog',
+        path: '/scenarios',
+        icon: ClipboardList,
+        tooltipDesc: 'Pre-configured division incident playbooks and weather emergency plans',
+      },
+      {
+        labelKey: 'nav.reports',
+        defaultLabel: 'Official Reports',
+        path: '/reports',
+        icon: FileText,
+        priorityForRole: 'ADMINISTRATION',
+        tooltipDesc: 'Generate statutory Railway Board joint circular certifications and logs',
+      },
     ],
   },
   {
-    title: 'ADMINISTRATION & COMPLIANCE',
+    titleKey: 'nav.admin_compliance',
+    defaultTitle: 'ADMINISTRATION & COMPLIANCE',
     items: [
-      { label: 'Audit Compliance', path: '/audit', icon: FileCheck2 },
+      {
+        labelKey: 'nav.audit',
+        defaultLabel: 'Audit Compliance',
+        path: '/audit',
+        icon: FileCheck2,
+        priorityForRole: 'ADMINISTRATION',
+        tooltipDesc: 'Immutable officer sign-off trail, cryptographically logged for safety inspection',
+      },
     ],
   },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { user } = useAuth()
+  const { t } = useTranslation()
+
+  const roleTag =
+    user?.role === 'WORKERS'
+      ? { label: t('role.badge.worker', 'FIELD P-WAY FOCUS'), icon: HardHat, color: 'text-rose-300 border-rose-400/40 bg-rose-950/40' }
+      : user?.role === 'OPERATIONS'
+      ? { label: t('role.badge.ops', 'TRAIN CONTROL FOCUS'), icon: Radio, color: 'text-blue-300 border-blue-400/40 bg-blue-950/40' }
+      : { label: t('role.badge.admin', 'SANCTION AUTHORITY'), icon: Building2, color: 'text-amber-300 border-amber-400/40 bg-amber-950/40' }
+
   return (
-    <aside className="w-64 bg-[#0B2545] text-slate-200 border-r border-[#134074] flex flex-col shrink-0 select-none text-xs font-sans">
-      {/* Top Main Dashboard Link */}
-      <div className="p-3 border-b border-[#134074]">
-        <NavLink
-          to="/"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-2.5 px-3 py-2 rounded font-medium transition-colors',
-              isActive
-                ? 'bg-[#134074] text-white border-l-4 border-amber-400 font-bold shadow-sm'
-                : 'text-slate-300 hover:bg-[#134074]/60 hover:text-white',
-            )
-          }
-        >
-          <LayoutDashboard className="h-4 w-4 text-amber-400 shrink-0" />
-          <span>Control Dashboard</span>
-        </NavLink>
-      </div>
+    <>
+      {/* Mobile/Tablet Backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200"
+        />
+      )}
 
-      {/* Nav Sections */}
-      <div className="flex-1 overflow-y-auto py-2 space-y-4 px-2">
-        {navSections.map((section) => (
-          <div key={section.title} className="space-y-1">
-            <div className="px-3 py-1 text-[10px] font-bold tracking-wider text-blue-300 uppercase">
-              {section.title}
-            </div>
-            {section.items.map((item) => {
-              const Icon = item.icon
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center justify-between px-3 py-1.5 rounded transition-colors group',
-                      isActive
-                        ? 'bg-[#134074] text-white font-semibold border-l-2 border-amber-400'
-                        : 'text-slate-300 hover:bg-[#134074]/50 hover:text-white',
-                    )
-                  }
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className="h-3.5 w-3.5 text-blue-300 group-hover:text-amber-300 shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className="text-[9px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-1 py-0.2 rounded font-mono font-bold">
-                      {item.badge}
-                    </span>
-                  )}
-                </NavLink>
+      {/* Sidebar Container: Fixed on Desktop, Slide-Over Drawer on Mobile/Tablet */}
+      <aside
+        className={cn(
+          'w-64 bg-[#0B2545] text-slate-200 border-r border-[#134074] flex flex-col shrink-0 select-none text-xs font-sans transition-transform duration-300 z-40',
+          'fixed inset-y-0 left-0 lg:static lg:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        )}
+      >
+        {/* Mobile Header Close Button */}
+        <div className="p-3 border-b border-[#134074] flex items-center justify-between">
+          <NavLink
+            to="/"
+            onClick={onClose}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded font-medium transition-all duration-200 flex-1 mr-2',
+                isActive
+                  ? 'bg-[#134074] text-white border-l-4 border-amber-400 font-bold shadow-sm'
+                  : 'text-slate-300 hover:bg-[#134074]/60 hover:text-white',
               )
-            })}
-          </div>
-        ))}
-      </div>
+            }
+          >
+            <LayoutDashboard className="h-4 w-4 text-amber-400 shrink-0" />
+            <span className="font-semibold">{t('nav.dashboard', 'Control Dashboard')}</span>
+          </NavLink>
 
-      {/* Footer / Department Information */}
-      <div className="p-3 border-t border-[#134074] bg-[#001D3D] text-[11px] text-slate-400">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-slate-300">Central Railway</span>
-          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">
-            ONLINE
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#134074]"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Role Adaptation Indicator Pill */}
+        <div className="mx-3 mt-2.5 p-2 rounded border flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider font-bold shadow-inner justify-between transition-colors duration-200"
+          style={{ backgroundColor: user?.role === 'WORKERS' ? '#3d0c14' : user?.role === 'OPERATIONS' ? '#082040' : '#2d1f05' }}
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <roleTag.icon className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+            <span className="truncate text-slate-100">{roleTag.label}</span>
+          </div>
+          <span className="text-[9px] px-1 py-0.5 rounded bg-black/40 text-emerald-300 font-bold font-mono shrink-0">
+            ACTIVE
           </span>
         </div>
-        <div className="text-[10px] text-slate-400 mt-0.5">Control Office Application Integration</div>
-      </div>
-    </aside>
+
+        {/* Nav Sections with Role Prioritization & Tooltips */}
+        <div className="flex-1 overflow-y-auto py-2 space-y-4 px-2">
+          {navSections.map((section) => (
+            <div key={section.titleKey} className="space-y-1">
+              <div className="px-3 py-1 text-[10px] font-bold tracking-wider text-blue-300 uppercase flex items-center justify-between">
+                <span>{t(section.titleKey, section.defaultTitle)}</span>
+              </div>
+              {section.items.map((item) => {
+                const Icon = item.icon
+                const isPriority = item.priorityForRole === user?.role
+                return (
+                  <Tooltip
+                    key={item.path}
+                    content={item.tooltipDesc}
+                    position="right"
+                    className="hidden lg:inline-flex"
+                  >
+                    <NavLink
+                      to={item.path}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center justify-between px-3 py-1.5 rounded transition-all duration-200 group w-full',
+                          isActive
+                            ? 'bg-[#134074] text-white font-semibold border-l-3 border-amber-400 shadow-sm'
+                            : 'text-slate-300 hover:bg-[#134074]/60 hover:text-white',
+                          isPriority && !isActive && 'bg-[#134074]/20 text-blue-100',
+                        )
+                      }
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon
+                          className={cn(
+                            'h-3.5 w-3.5 shrink-0 transition-colors',
+                            isPriority
+                              ? 'text-amber-300'
+                              : 'text-blue-300 group-hover:text-amber-300',
+                          )}
+                        />
+                        <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isPriority && (
+                          <span className="text-[8px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-1 py-0.2 rounded font-mono font-bold">
+                            CORE
+                          </span>
+                        )}
+                        {item.badge && (
+                          <span className="text-[9px] bg-blue-500/20 text-blue-200 border border-blue-400/30 px-1 py-0.2 rounded font-mono font-bold">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </NavLink>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer / Department Information */}
+        <div className="p-3 border-t border-[#134074] bg-[#001D3D] text-[11px] text-slate-400">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-slate-300">Indian Railways</span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">
+              ALL-INDIA NROC
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Control Office Application Integration</div>
+        </div>
+      </aside>
+    </>
   )
 }
