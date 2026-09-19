@@ -17,9 +17,11 @@ import { Alerts } from '@/pages/Alerts'
 import { Reports } from '@/pages/Reports'
 import { Audit } from '@/pages/Audit'
 import { Complaints } from '@/pages/Complaints'
+import { Users } from '@/pages/Users'
+import { Settings } from '@/pages/Settings'
 
 /**
- * RAILBLOCK AI ?" Application Router
+ * RAILBLOCK AI — Application Router
  */
 function App() {
   return (
@@ -43,8 +45,10 @@ function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="/complaints" element={<Complaints />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/settings" element={<Settings />} />
           
-          {/* Catch-all ?" redirect unknown paths to home */}
+          {/* Catch-all — redirect unknown paths to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>

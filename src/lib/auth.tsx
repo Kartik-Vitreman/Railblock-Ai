@@ -4,6 +4,7 @@ import { UserRole } from '@/types'
 
 export interface User {
   id: string
+  username?: string
   email: string
   name?: string
   full_name: string
@@ -13,55 +14,78 @@ export interface User {
   division: string
   clearance: string
   permissions: string[]
+  status?: string
+  last_login?: string | null
 }
 
-export const OFFICIAL_DEMO_ACCOUNTS: Record<UserRole, User> = {
+export const OFFICIAL_DEMO_ACCOUNTS: Record<UserRole, {
+  id: string
+  username: string
+  email: string
+  password: string
+  name: string
+  full_name: string
+  role: UserRole
+  department: string
+  designation: string
+  division: string
+  clearance: string
+  permissions: string[]
+}> = {
   ADMIN: {
-    id: 'USR-ADMIN-01',
+    id: 'usr-admin',
+    username: 'admin',
     email: 'admin@railnet.gov.in',
+    password: 'RailNet@2026',
     name: 'Shri V. R. Sharma, IRTS',
     full_name: 'Shri V. R. Sharma, IRTS',
     role: 'ADMIN',
-    department: 'OPERATIONS',
+    department: 'Administration & Traffic Sanction',
     designation: 'Senior Divisional Operations Manager (Sr. DOM)',
-    division: 'CR-BB (Mumbai CSMT)',
-    clearance: 'LEVEL-1 EXECUTIVE / STATUTORY SANCTION',
+    division: 'Central Railway — Mumbai Division (HQ)',
+    clearance: 'Class-A Final Human Approval Authority',
     permissions: ['*'],
   },
   PLANNER: {
-    id: 'USR-PLAN-02',
+    id: 'usr-planner',
+    username: 'planner',
     email: 'planner@railnet.gov.in',
+    password: 'RailNet@2026',
     name: 'Shri A. K. Deshmukh',
     full_name: 'Shri A. K. Deshmukh',
     role: 'PLANNER',
-    department: 'TRAFFIC',
+    department: 'Operating Department',
     designation: 'Chief Section Controller (Traffic & Planning)',
-    division: 'CR-BB (Central Railway)',
-    clearance: 'LEVEL-2 CONTROL OFFICE & SCHEDULING',
+    division: 'Central Control Office, CSMT Mumbai',
+    clearance: 'Corridor Capacity & Optimization Planning',
     permissions: ['READ_ALL', 'CREATE_PLAN', 'SUBMIT_PLAN', 'SIMULATE', 'REPORT_COMPLAINT'],
   },
   WORKER: {
-    id: 'USR-WORK-03',
+    id: 'usr-worker',
+    username: 'worker',
     email: 'worker@railnet.gov.in',
+    password: 'RailNet@2026',
     name: 'Shri R. N. Patil',
     full_name: 'Shri R. N. Patil',
     role: 'WORKER',
-    department: 'CIVIL_ENGINEERING',
+    department: 'Civil Engineering & P-Way Depot',
     designation: 'Senior Section Engineer (P-Way / Field Staff)',
-    division: 'CR-BB (Kalyan - Kasara)',
-    clearance: 'LEVEL-3 FIELD WORK ORDER & DEFECT LOGGING',
+    division: 'Kalyan — Karjat Engineering Depot',
+    clearance: 'Field Execution & Observation Reporting',
     permissions: ['READ_ASSIGNED', 'CREATE_WORK_ORDER', 'RECORD_DEFECT', 'RESOLVE_COMPLAINT', 'REPORT_COMPLAINT'],
   },
   VIEWER: {
-    id: 'USR-VIEW-04',
+    id: 'usr-viewer',
+    username: 'viewer',
     email: 'viewer@railnet.gov.in',
+    password: 'RailNet@2026',
     name: 'Smt. Priya Nair',
     full_name: 'Smt. Priya Nair',
     role: 'VIEWER',
-    department: 'STATION_SERVICES',
+    department: 'Commercial & Station Operations',
     designation: 'Station Superintendent / Rail Safety Observer',
-    division: 'CR-BB (Central Division)',
-    clearance: 'LEVEL-4 READ ONLY & DEFECT / COMPLAINT REPORTING',
+    division: 'Mumbai Division',
+    clearance: 'Operational Observation & Problem Reporting',
     permissions: ['READ_DASHBOARD', 'READ_TRAINS', 'READ_NETWORK', 'REPORT_COMPLAINT', 'VIEW_MY_COMPLAINTS'],
   },
 }
@@ -74,9 +98,8 @@ interface AuthContextType {
   isLoading: boolean
   login: (token: string, userData?: User) => Promise<void>
   loginAsAccount: (email: string, password?: string) => Promise<User>
-  switchUser: (role: UserRole) => Promise<void>
   refreshProfile: () => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -90,14 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await authApi.getMe()
       setUser(data)
     } catch {
-      // If token invalid, sign in as default Admin account
-      try {
-        const res = await authApi.login({ email: OFFICIAL_DEMO_ACCOUNTS.ADMIN.email, password: 'RailNet@2026' })
-        localStorage.setItem('railblock_access_token', res.access_token)
-        setUser(res.user)
-      } catch {
-        setUser(null)
-      }
+      localStorage.removeItem('railblock_access_token')
+      setUser(null)
     }
   }
 
@@ -108,23 +125,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userData = await authApi.getMe()
           setUser(userData)
-          setIsLoading(false)
-          return
         } catch {
-          // Token expired or invalid
+          // Token expired or invalid - clear it
+          localStorage.removeItem('railblock_access_token')
+          setUser(null)
         }
+      } else {
+        setUser(null)
       }
-
-      // Default initialize with Admin official session
-      try {
-        const res = await authApi.login({ email: OFFICIAL_DEMO_ACCOUNTS.ADMIN.email, password: 'RailNet@2026' })
-        localStorage.setItem('railblock_access_token', res.access_token)
-        setUser(res.user)
-      } catch {
-        // fallback
-      } finally {
-        setIsLoading(false)
-      }
+      setIsLoading(false)
     }
 
     initAuth()
@@ -156,20 +165,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const switchUser = async (role: UserRole) => {
-    const account = OFFICIAL_DEMO_ACCOUNTS[role]
-    if (account) {
-      await loginAsAccount(account.email, 'RailNet@2026')
+  const logout = async () => {
+    try {
+      await authApi.logout()
+    } catch {
+      // ignore network errors
+    } finally {
+      localStorage.removeItem('railblock_access_token')
+      setUser(null)
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('railblock_access_token')
-    setUser(null)
-  }
-
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginAsAccount, switchUser, refreshProfile, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginAsAccount, refreshProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

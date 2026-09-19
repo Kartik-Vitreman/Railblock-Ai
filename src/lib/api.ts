@@ -102,8 +102,24 @@ export const authApi = {
     const { data } = await apiClient.post('/api/v1/auth/login', payload)
     return data
   },
+  logout: async () => {
+    const { data } = await apiClient.post('/api/v1/auth/logout')
+    return data
+  },
   getMe: async () => {
     const { data } = await apiClient.get('/api/v1/auth/me')
+    return data
+  },
+  forgotPassword: async (email: string) => {
+    const { data } = await apiClient.post('/api/v1/auth/forgot-password', { email })
+    return data
+  },
+  resetPassword: async (payload: { email: string; code: string; new_password: string }) => {
+    const { data } = await apiClient.post('/api/v1/auth/reset-password', payload)
+    return data
+  },
+  googleLogin: async (payload: { email: string; name?: string; credential?: string }) => {
+    const { data } = await apiClient.post('/api/v1/auth/google', payload)
     return data
   },
 }
@@ -439,6 +455,33 @@ export const simulationApi = {
   },
   reset: async () => {
     const { data } = await apiClient.post('/api/v1/simulation/run', { scenario_code: 'NORMAL_OPERATIONS' })
+    return data
+  },
+}
+
+export const userManagementApi = {
+  getUsers: async () => {
+    const { data } = await apiClient.get('/api/v1/users')
+    return data
+  },
+  createUser: async (payload: any) => {
+    const { data } = await apiClient.post('/api/v1/users', payload)
+    return data
+  },
+  updateRole: async (userId: string, role: string, permissions?: string[]) => {
+    const { data } = await apiClient.put(`/api/v1/users/${userId}/role`, { role, permissions })
+    return data
+  },
+  updateStatus: async (userId: string, status: 'ACTIVE' | 'INACTIVE') => {
+    const { data } = await apiClient.put(`/api/v1/users/${userId}/status`, { status })
+    return data
+  },
+  resetPassword: async (userId: string, new_password: string) => {
+    const { data } = await apiClient.post(`/api/v1/users/${userId}/reset-password`, { new_password })
+    return data
+  },
+  deleteUser: async (userId: string) => {
+    const { data } = await apiClient.delete(`/api/v1/users/${userId}`)
     return data
   },
 }

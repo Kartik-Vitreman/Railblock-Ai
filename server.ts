@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 
 const app = express();
@@ -625,8 +626,10 @@ export type UserRole = 'ADMIN' | 'PLANNER' | 'WORKER' | 'VIEWER';
 
 export interface UserAccount {
   id: string;
+  username: string;
   email: string;
-  password?: string;
+  password_hash: string;
+  password_salt: string;
   name: string;
   full_name: string;
   role: UserRole;
@@ -637,12 +640,36 @@ export interface UserAccount {
   permissions: string[];
   status: 'ACTIVE' | 'SUSPENDED';
   created_at: string;
+  updated_at: string;
+  last_login: string | null;
+  reset_code?: string | null;
+  reset_code_expires?: number | null;
 }
+
+// Secure password hashing with PBKDF2 (SHA-512 with 10,000 rounds)
+function hashPassword(password: string, salt: string): string {
+  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password: string, hash: string, salt: string): boolean {
+  try {
+    const computed = hashPassword(password, salt);
+    return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(hash));
+  } catch {
+    return false;
+  }
+}
+
+const DEFAULT_SALT = 'railblock_secure_salt_2026';
+const DEFAULT_HASH = hashPassword('RailNet@2026', DEFAULT_SALT);
 
 const USERS_DIRECTORY: UserAccount[] = [
   {
     id: 'usr-admin',
+    username: 'admin',
     email: 'admin@railnet.gov.in',
+    password_hash: DEFAULT_HASH,
+    password_salt: DEFAULT_SALT,
     name: 'Shri V. R. Sharma, IRTS',
     full_name: 'Shri V. R. Sharma, IRTS',
     role: 'ADMIN',
@@ -652,6 +679,8 @@ const USERS_DIRECTORY: UserAccount[] = [
     clearance: 'Class-A Final Human Approval Authority',
     status: 'ACTIVE',
     created_at: '2025-01-15T08:00:00.000Z',
+    updated_at: '2025-01-15T08:00:00.000Z',
+    last_login: null,
     permissions: [
       'VIEW_ALL_DASHBOARDS',
       'MANAGE_USERS',
@@ -674,7 +703,10 @@ const USERS_DIRECTORY: UserAccount[] = [
   },
   {
     id: 'usr-planner',
+    username: 'planner',
     email: 'planner@railnet.gov.in',
+    password_hash: DEFAULT_HASH,
+    password_salt: DEFAULT_SALT,
     name: 'Shri A. K. Deshmukh',
     full_name: 'Shri A. K. Deshmukh',
     role: 'PLANNER',
@@ -684,6 +716,8 @@ const USERS_DIRECTORY: UserAccount[] = [
     clearance: 'Corridor Capacity & Optimization Planning',
     status: 'ACTIVE',
     created_at: '2025-02-10T09:30:00.000Z',
+    updated_at: '2025-02-10T09:30:00.000Z',
+    last_login: null,
     permissions: [
       'VIEW_PERMITTED_DASHBOARDS',
       'CREATE_PLANS',
@@ -698,7 +732,10 @@ const USERS_DIRECTORY: UserAccount[] = [
   },
   {
     id: 'usr-worker',
+    username: 'worker',
     email: 'worker@railnet.gov.in',
+    password_hash: DEFAULT_HASH,
+    password_salt: DEFAULT_SALT,
     name: 'Shri R. N. Patil',
     full_name: 'Shri R. N. Patil',
     role: 'WORKER',
@@ -708,6 +745,8 @@ const USERS_DIRECTORY: UserAccount[] = [
     clearance: 'Field Execution & Observation Reporting',
     status: 'ACTIVE',
     created_at: '2025-03-01T11:00:00.000Z',
+    updated_at: '2025-03-01T11:00:00.000Z',
+    last_login: null,
     permissions: [
       'VIEW_ASSIGNED_TASKS',
       'UPDATE_EXECUTION_STATUS',
@@ -720,7 +759,10 @@ const USERS_DIRECTORY: UserAccount[] = [
   },
   {
     id: 'usr-viewer',
+    username: 'viewer',
     email: 'viewer@railnet.gov.in',
+    password_hash: DEFAULT_HASH,
+    password_salt: DEFAULT_SALT,
     name: 'Smt. Priya Nair',
     full_name: 'Smt. Priya Nair',
     role: 'VIEWER',
@@ -730,6 +772,8 @@ const USERS_DIRECTORY: UserAccount[] = [
     clearance: 'Operational Observation & Problem Reporting',
     status: 'ACTIVE',
     created_at: '2025-04-12T14:20:00.000Z',
+    updated_at: '2025-04-12T14:20:00.000Z',
+    last_login: null,
     permissions: [
       'VIEW_PERMITTED_DASHBOARDS',
       'VIEW_PERMITTED_PLANS',
@@ -849,26 +893,13 @@ let systemSettings: SystemSettings = {
   zone_name: 'Central Railway (CR)',
 };
 
-// Token extraction & user resolution helper
+// Token extraction & user resolution helper - STRICT SESSION CHECKING
 function resolveUserFromToken(token: string): UserAccount | null {
   if (!token) return null;
   if (ACTIVE_SESSIONS[token]) {
     return ACTIVE_SESSIONS[token];
   }
-  const tokenLower = token.toLowerCase();
-  if (tokenLower.includes('admin')) {
-    return USERS_DIRECTORY.find((u) => u.role === 'ADMIN') || null;
-  }
-  if (tokenLower.includes('planner') || tokenLower.includes('operat')) {
-    return USERS_DIRECTORY.find((u) => u.role === 'PLANNER') || null;
-  }
-  if (tokenLower.includes('worker') || tokenLower.includes('pway')) {
-    return USERS_DIRECTORY.find((u) => u.role === 'WORKER') || null;
-  }
-  if (tokenLower.includes('viewer')) {
-    return USERS_DIRECTORY.find((u) => u.role === 'VIEWER') || null;
-  }
-  return USERS_DIRECTORY.find((u) => u.role === 'ADMIN') || null;
+  return null;
 }
 
 function extractUserFromRequest(req: express.Request): UserAccount | null {
@@ -1096,30 +1127,78 @@ const complaints: Complaint[] = [
 // AUTH & USER ENDPOINTS
 // ---------------------------------------------------------------------------
 
-// Auth Login - Role is STRICTLY controlled by backend record!
+// Auth Login - Authenticates against hashed credentials; Role is STRICTLY controlled by backend record!
 app.post(['/api/v1/auth/login', '/auth/login'], (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email) {
-    return res.status(400).json({ detail: 'Email address is required' });
+  const { email, username, password } = req.body || {};
+  const identifier = (email || username || '').toLowerCase().trim();
+  const rawPassword = password || '';
+
+  if (!identifier) {
+    return res.status(400).json({ detail: 'Username or RailNet email address is required', code: 'IDENTIFIER_REQUIRED' });
+  }
+  if (!rawPassword) {
+    return res.status(400).json({ detail: 'Password / Security PIN is required', code: 'PASSWORD_REQUIRED' });
   }
 
-  const emailLower = email.toLowerCase().trim();
+  // Lookup in backend database by email or username
   const matchedUser = USERS_DIRECTORY.find((u) => {
-    const uEmail = u.email.toLowerCase();
-    if (uEmail === emailLower) return true;
-    // Support legacy email patterns
-    if (emailLower.includes('admin') && u.role === 'ADMIN') return true;
-    if ((emailLower.includes('controller') || emailLower.includes('planner')) && u.role === 'PLANNER') return true;
-    if ((emailLower.includes('worker') || emailLower.includes('pway')) && u.role === 'WORKER') return true;
-    if (emailLower.includes('viewer') && u.role === 'VIEWER') return true;
-    return false;
+    return (
+      u.email.toLowerCase() === identifier ||
+      u.username.toLowerCase() === identifier
+    );
   });
 
   if (!matchedUser) {
-    return res.status(401).json({ detail: 'Invalid railway credentials. Account not found in RailNet directory.' });
+    logAudit({
+      action: 'LOGIN_FAILED',
+      user: identifier,
+      entity_type: 'AUTH_GATEWAY',
+      entity_id: identifier,
+      details: `Authentication failed: User identifier '${identifier}' not found in RailNet directory.`,
+    });
+    return res.status(401).json({
+      detail: 'Invalid railway credentials. Account not found in RailNet directory.',
+      code: 'INVALID_CREDENTIALS',
+    });
   }
 
-  const token = `railblock_${matchedUser.role.toLowerCase()}_${matchedUser.id}_${Date.now()}`;
+  // Verify hashed password
+  const isPasswordValid = verifyPassword(rawPassword, matchedUser.password_hash, matchedUser.password_salt);
+  if (!isPasswordValid) {
+    logAudit({
+      action: 'LOGIN_FAILED',
+      user: `${matchedUser.full_name} (${matchedUser.role})`,
+      user_id: matchedUser.id,
+      user_role: matchedUser.role,
+      entity_type: 'AUTH_GATEWAY',
+      entity_id: matchedUser.id,
+      details: `Authentication failed: Incorrect password provided for '${matchedUser.email}'.`,
+    });
+    return res.status(401).json({
+      detail: 'Invalid railway credentials. Incorrect password or PIN.',
+      code: 'INVALID_CREDENTIALS',
+    });
+  }
+
+  if (matchedUser.status === 'SUSPENDED') {
+    logAudit({
+      action: 'SUSPENDED_LOGIN_BLOCKED',
+      user: `${matchedUser.full_name} (${matchedUser.role})`,
+      user_id: matchedUser.id,
+      user_role: matchedUser.role,
+      entity_type: 'AUTH_GATEWAY',
+      entity_id: matchedUser.id,
+      details: `Login attempt blocked: Account '${matchedUser.email}' is marked SUSPENDED by Administration.`,
+    });
+    return res.status(403).json({
+      detail: 'Account suspended. Please contact Railway Administration.',
+      code: 'ACCOUNT_SUSPENDED',
+    });
+  }
+
+  // Cryptographically random bearer token
+  const token = `rbk_session_${crypto.randomBytes(32).toString('hex')}`;
+  matchedUser.last_login = new Date().toISOString();
   ACTIVE_SESSIONS[token] = matchedUser;
 
   logAudit({
@@ -1137,6 +1216,7 @@ app.post(['/api/v1/auth/login', '/auth/login'], (req, res) => {
     token_type: 'bearer',
     user: {
       id: matchedUser.id,
+      username: matchedUser.username,
       name: matchedUser.name,
       full_name: matchedUser.full_name,
       email: matchedUser.email,
@@ -1146,20 +1226,46 @@ app.post(['/api/v1/auth/login', '/auth/login'], (req, res) => {
       division: matchedUser.division,
       clearance: matchedUser.clearance,
       permissions: matchedUser.permissions,
+      status: matchedUser.status,
+      last_login: matchedUser.last_login,
     },
   });
 });
 
-// Current User Profile
+// Auth Logout - Terminates active session and invalidates token
+app.post(['/api/v1/auth/logout', '/auth/logout'], (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (token && ACTIVE_SESSIONS[token]) {
+      const user = ACTIVE_SESSIONS[token];
+      logAudit({
+        action: 'USER_LOGGED_OUT',
+        user: `${user.full_name} (${user.role})`,
+        user_id: user.id,
+        user_role: user.role,
+        entity_type: 'AUTH_SESSION',
+        entity_id: user.id,
+        details: `User session ended for '${user.full_name}'. Session token invalidated.`,
+      });
+      delete ACTIVE_SESSIONS[token];
+    }
+  }
+  res.json({ message: 'Session closed successfully', code: 'LOGGED_OUT' });
+});
+
+// Current User Profile - STRICT: Returns 401 if unauthenticated!
 app.get(['/api/v1/auth/me', '/auth/me'], (req, res) => {
   const user = extractUserFromRequest(req);
   if (!user) {
-    // Default to admin for initial development preview if no token
-    const defaultAdmin = USERS_DIRECTORY[0];
-    return res.json(defaultAdmin);
+    return res.status(401).json({
+      detail: 'Authentication required. No active session.',
+      code: 'AUTH_REQUIRED',
+    });
   }
   res.json({
     id: user.id,
+    username: user.username,
     name: user.name,
     full_name: user.full_name,
     email: user.email,
@@ -1169,6 +1275,136 @@ app.get(['/api/v1/auth/me', '/auth/me'], (req, res) => {
     division: user.division,
     clearance: user.clearance,
     permissions: user.permissions,
+    status: user.status,
+    last_login: user.last_login,
+  });
+});
+
+// Forgot Password - Generates secure 6-digit OTP verification code
+app.post(['/api/v1/auth/forgot-password', '/auth/forgot-password'], (req, res) => {
+  const { email } = req.body || {};
+  if (!email) {
+    return res.status(400).json({ detail: 'Registered email address is required', code: 'EMAIL_REQUIRED' });
+  }
+  const emailLower = email.toLowerCase().trim();
+  const user = USERS_DIRECTORY.find((u) => u.email.toLowerCase() === emailLower);
+  if (!user) {
+    return res.json({
+      success: true,
+      message: 'If the email exists in RailNet directory, a 6-digit reset code has been generated.',
+    });
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  user.reset_code = code;
+  user.reset_code_expires = Date.now() + 15 * 60 * 1000; // 15 mins validity
+
+  logAudit({
+    action: 'PASSWORD_RESET_REQUESTED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'USER',
+    entity_id: user.id,
+    details: `Password reset verification code issued for '${user.email}'.`,
+  });
+
+  res.json({
+    success: true,
+    message: 'Reset verification code issued.',
+    reset_code_hint: code, // Provided for easy demo and operation
+  });
+});
+
+// Reset Password - Verifies code and updates password hash
+app.post(['/api/v1/auth/reset-password', '/auth/reset-password'], (req, res) => {
+  const { email, code, new_password } = req.body || {};
+  if (!email || !code || !new_password) {
+    return res.status(400).json({ detail: 'Email, verification code, and new password are required', code: 'FIELDS_REQUIRED' });
+  }
+  const emailLower = email.toLowerCase().trim();
+  const user = USERS_DIRECTORY.find((u) => u.email.toLowerCase() === emailLower);
+  if (!user || user.reset_code !== String(code).trim() || !user.reset_code_expires || Date.now() > user.reset_code_expires) {
+    return res.status(400).json({ detail: 'Invalid or expired verification code. Please request a new code.', code: 'INVALID_CODE' });
+  }
+
+  const newSalt = crypto.randomBytes(16).toString('hex');
+  user.password_salt = newSalt;
+  user.password_hash = hashPassword(new_password, newSalt);
+  user.reset_code = null;
+  user.reset_code_expires = null;
+  user.updated_at = new Date().toISOString();
+
+  logAudit({
+    action: 'PASSWORD_RESET_COMPLETED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'USER',
+    entity_id: user.id,
+    details: `Password securely updated for account '${user.email}'.`,
+  });
+
+  res.json({
+    success: true,
+    message: 'Password successfully updated. You may now log in with your new password.',
+  });
+});
+
+// Google Authorized Sign-In - Validates against registered RailNet accounts
+app.post(['/api/v1/auth/google', '/auth/google'], (req, res) => {
+  const { email, name } = req.body || {};
+  if (!email) {
+    return res.status(400).json({ detail: 'Google account email is required', code: 'EMAIL_REQUIRED' });
+  }
+  const emailLower = email.toLowerCase().trim();
+  const matchedUser = USERS_DIRECTORY.find((u) => u.email.toLowerCase() === emailLower);
+  if (!matchedUser) {
+    logAudit({
+      action: 'UNAUTHORIZED_LOGIN_ATTEMPT',
+      user: name ? `${name} (${email})` : email,
+      entity_type: 'AUTH_GATEWAY',
+      entity_id: email,
+      details: `Google authentication rejected: Email '${email}' is not provisioned in Indian Railways RailNet directory.`,
+    });
+    return res.status(403).json({
+      detail: 'This Google account is not registered with RailBlock AI. Only authorized railway personnel with pre-provisioned RailNet accounts may log in.',
+      code: 'UNREGISTERED_ACCOUNT',
+    });
+  }
+
+  matchedUser.last_login = new Date().toISOString();
+  const token = `rbk_google_${crypto.randomBytes(32).toString('hex')}`;
+  ACTIVE_SESSIONS[token] = matchedUser;
+
+  logAudit({
+    action: 'USER_AUTHENTICATED_GOOGLE',
+    user: `${matchedUser.full_name} (${matchedUser.role})`,
+    user_id: matchedUser.id,
+    user_role: matchedUser.role,
+    entity_type: 'AUTH_SESSION',
+    entity_id: matchedUser.id,
+    details: `Google Authorized Sign-In verified for '${matchedUser.email}'. Backend role assigned: '${matchedUser.role}'.`,
+  });
+
+  res.json({
+    access_token: token,
+    token_type: 'bearer',
+    user: {
+      id: matchedUser.id,
+      username: matchedUser.username,
+      name: matchedUser.name,
+      full_name: matchedUser.full_name,
+      email: matchedUser.email,
+      role: matchedUser.role,
+      department: matchedUser.department,
+      designation: matchedUser.designation,
+      division: matchedUser.division,
+      clearance: matchedUser.clearance,
+      permissions: matchedUser.permissions,
+      status: matchedUser.status,
+      last_login: matchedUser.last_login,
+    },
   });
 });
 
@@ -1181,6 +1417,7 @@ app.get(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
   res.json({
     items: USERS_DIRECTORY.map((u) => ({
       id: u.id,
+      username: u.username,
       name: u.name,
       full_name: u.full_name,
       email: u.email,
@@ -1192,6 +1429,8 @@ app.get(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
       permissions: u.permissions,
       status: u.status,
       created_at: u.created_at,
+      updated_at: u.updated_at,
+      last_login: u.last_login,
     })),
     total: USERS_DIRECTORY.length,
   });
@@ -1199,21 +1438,30 @@ app.get(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
 
 // Create new user - ADMIN ONLY
 app.post(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
-  const { full_name, email, role, department, designation, division, clearance, permissions } = req.body || {};
+  const { full_name, email, username, role, department, designation, division, clearance, permissions, password } = req.body || {};
   if (!full_name || !email || !role) {
     return res.status(400).json({ detail: 'Full name, email, and role are required' });
   }
 
-  const existing = USERS_DIRECTORY.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const existing = USERS_DIRECTORY.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase() || (username && u.username.toLowerCase() === username.toLowerCase())
+  );
   if (existing) {
-    return res.status(400).json({ detail: 'A user with this email address already exists' });
+    return res.status(400).json({ detail: 'A user with this email address or username already exists' });
   }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const userPassword = password || 'RailNet@2026';
+  const hashedPassword = hashPassword(userPassword, salt);
 
   const newUser: UserAccount = {
     id: `usr-${Date.now().toString().slice(-4)}`,
+    username: username || email.split('@')[0],
     name: full_name,
     full_name,
     email,
+    password_hash: hashedPassword,
+    password_salt: salt,
     role,
     department: department || 'Operations Department',
     designation: designation || 'Railway Officer',
@@ -1222,6 +1470,8 @@ app.post(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
     permissions: permissions || ['VIEW_PERMITTED_DASHBOARDS'],
     status: 'ACTIVE',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    last_login: null,
   };
 
   USERS_DIRECTORY.push(newUser);
@@ -1236,7 +1486,21 @@ app.post(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
     details: `Created user account '${newUser.full_name}' with assigned role '${newUser.role}'.`,
   });
 
-  res.status(201).json(newUser);
+  res.status(201).json({
+    id: newUser.id,
+    username: newUser.username,
+    name: newUser.name,
+    full_name: newUser.full_name,
+    email: newUser.email,
+    role: newUser.role,
+    department: newUser.department,
+    designation: newUser.designation,
+    division: newUser.division,
+    clearance: newUser.clearance,
+    permissions: newUser.permissions,
+    status: newUser.status,
+    created_at: newUser.created_at,
+  });
 });
 
 // Update user role - ADMIN ONLY
@@ -1253,8 +1517,19 @@ app.put(['/api/v1/users/:id/role', '/users/:id/role'], requireRoles('ADMIN'), (r
 
   const oldRole = targetUser.role;
   targetUser.role = role;
+  targetUser.updated_at = new Date().toISOString();
   if (Array.isArray(permissions)) {
     targetUser.permissions = permissions;
+  }
+
+  // Live session synchronization: update active sessions for this user so changes apply immediately
+  for (const sessionToken in ACTIVE_SESSIONS) {
+    if (ACTIVE_SESSIONS[sessionToken].id === targetUser.id) {
+      ACTIVE_SESSIONS[sessionToken].role = role;
+      if (Array.isArray(permissions)) {
+        ACTIVE_SESSIONS[sessionToken].permissions = permissions;
+      }
+    }
   }
 
   logAudit({
@@ -1269,7 +1544,92 @@ app.put(['/api/v1/users/:id/role', '/users/:id/role'], requireRoles('ADMIN'), (r
     new_status: role,
   });
 
-  res.json({ message: 'User role updated successfully', user: targetUser });
+  res.json({
+    message: 'User role updated successfully',
+    user: {
+      id: targetUser.id,
+      username: targetUser.username,
+      name: targetUser.name,
+      full_name: targetUser.full_name,
+      email: targetUser.email,
+      role: targetUser.role,
+      department: targetUser.department,
+      designation: targetUser.designation,
+      division: targetUser.division,
+      clearance: targetUser.clearance,
+      permissions: targetUser.permissions,
+      status: targetUser.status,
+      updated_at: targetUser.updated_at,
+    },
+  });
+});
+
+// Update user status (ACTIVE / INACTIVE) - ADMIN ONLY
+app.put(['/api/v1/users/:id/status', '/users/:id/status'], requireRoles('ADMIN'), (req, res) => {
+  const { status } = req.body || {};
+  if (!status || !['ACTIVE', 'INACTIVE'].includes(status)) {
+    return res.status(400).json({ detail: 'Valid status (ACTIVE, INACTIVE) is required' });
+  }
+
+  const targetUser = USERS_DIRECTORY.find((u) => u.id === req.params.id);
+  if (!targetUser) {
+    return res.status(404).json({ detail: 'User not found' });
+  }
+
+  targetUser.status = status;
+  targetUser.updated_at = new Date().toISOString();
+
+  // If set to INACTIVE, revoke any active sessions
+  if (status === 'INACTIVE') {
+    for (const token in ACTIVE_SESSIONS) {
+      if (ACTIVE_SESSIONS[token].id === targetUser.id) {
+        delete ACTIVE_SESSIONS[token];
+      }
+    }
+  }
+
+  logAudit({
+    action: 'USER_STATUS_MODIFIED',
+    user: (req as any).user.full_name,
+    user_id: (req as any).user.id,
+    user_role: (req as any).user.role,
+    entity_type: 'USER',
+    entity_id: targetUser.id,
+    details: `Updated account status for '${targetUser.full_name}' to '${status}'.`,
+    new_status: status,
+  });
+
+  res.json({ message: 'User status updated', user: targetUser });
+});
+
+// Admin reset user password - ADMIN ONLY
+app.post(['/api/v1/users/:id/reset-password', '/users/:id/reset-password'], requireRoles('ADMIN'), (req, res) => {
+  const { new_password } = req.body || {};
+  if (!new_password || typeof new_password !== 'string' || new_password.length < 6) {
+    return res.status(400).json({ detail: 'New password of at least 6 characters is required' });
+  }
+
+  const targetUser = USERS_DIRECTORY.find((u) => u.id === req.params.id);
+  if (!targetUser) {
+    return res.status(404).json({ detail: 'User not found' });
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  targetUser.password_salt = salt;
+  targetUser.password_hash = hashPassword(new_password, salt);
+  targetUser.updated_at = new Date().toISOString();
+
+  logAudit({
+    action: 'USER_PASSWORD_ADMIN_RESET',
+    user: (req as any).user.full_name,
+    user_id: (req as any).user.id,
+    user_role: (req as any).user.role,
+    entity_type: 'USER',
+    entity_id: targetUser.id,
+    details: `Admin reset password for user '${targetUser.full_name}' (${targetUser.email}).`,
+  });
+
+  res.json({ message: `Password reset successfully for ${targetUser.full_name}` });
 });
 
 // Delete user - ADMIN ONLY

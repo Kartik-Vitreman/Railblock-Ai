@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/lib/i18n'
+import { useTranslation, SUPPORTED_LANGUAGES } from '@/lib/i18n'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { UserRole } from '@/types'
 import {
   Clock,
   LogOut,
@@ -16,6 +15,7 @@ import {
   Menu,
   Check,
   Eye,
+  ShieldCheck,
 } from 'lucide-react'
 
 interface HeaderProps {
@@ -23,12 +23,11 @@ interface HeaderProps {
 }
 
 export function Header({ onToggleMobileMenu }: HeaderProps) {
-  const { user, switchUser, logout } = useAuth()
+  const { user, logout } = useAuth()
   const { language, setLanguage, t } = useTranslation()
   const navigate = useNavigate()
   const [istTime, setIstTime] = useState<string>('')
   const [istDate, setIstDate] = useState<string>('')
-  const [showRoleMenu, setShowRoleMenu] = useState(false)
   const [showLangMenu, setShowLangMenu] = useState(false)
 
   useEffect(() => {
@@ -56,11 +55,6 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
     return () => clearInterval(timer)
   }, [])
 
-  const handleRoleSwitch = (role: UserRole) => {
-    switchUser(role)
-    setShowRoleMenu(false)
-  }
-
   const roleLabel =
     user?.role === 'ADMIN'
       ? t('role.admin', 'ADMIN (SR. DOM)')
@@ -82,6 +76,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
     )
 
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0]
+
+  const handleSignOut = async () => {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <header className="w-full bg-[#0B2545] text-white border-b-2 border-[#A6192E] shadow-sm select-none z-30 relative">
@@ -132,11 +131,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           </div>
         </div>
 
-        {/* Right: Language Switcher, IST Clock, Role Clearance Switcher & Sign Out */}
+        {/* Right: Language Switcher, IST Clock, Verified Officer Clearance Badge & Sign Out */}
         <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 text-xs">
-          {/* 1. Language Button at Top (Hindi, Tamil, Telugu, English) */}
+          {/* 1. Language Button (English / हिन्दी) */}
           <div className="relative">
-            <Tooltip content={t('tt.lang', 'Change language / भाषा / மொழி / భాష')} position="bottom">
+            <Tooltip content={t('tt.lang', 'Change language / भाषा बदलें')} position="bottom">
               <button
                 onClick={() => setShowLangMenu(!showLangMenu)}
                 className="bg-[#134074] hover:bg-[#1a5394] px-2.5 py-1.5 rounded border border-amber-400/40 text-amber-200 hover:text-white flex items-center gap-1.5 transition-all duration-200 font-medium shadow-sm active:scale-95 cursor-pointer"
@@ -151,7 +150,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
             {/* Language Selection Dropdown Menu */}
             {showLangMenu && (
-              <div className="absolute right-0 mt-1.5 w-48 bg-white text-slate-800 rounded-lg shadow-2xl border-2 border-[#134074] py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-1.5 w-44 bg-white text-slate-800 rounded-lg shadow-2xl border-2 border-[#134074] py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-1 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 flex items-center justify-between">
                   <span>{t('lang.switch', 'Select Language')}</span>
                   <Globe className="h-3 w-3 text-slate-400" />
@@ -194,132 +193,35 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
             </div>
           </Tooltip>
 
-          {/* 3. Role Clearance & Department Switcher */}
-          <div className="relative">
-            <Tooltip content={t('tt.role', 'Switch operational role (Administration, Operations, Workers)')} position="bottom">
-              <div
-                onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="cursor-pointer bg-[#134074] hover:bg-[#1a5394] px-2.5 py-1 rounded border border-blue-400/30 flex items-center gap-2 transition-all duration-200 active:scale-95 shadow-sm"
-              >
-                <div className="flex flex-col text-right min-w-[120px] sm:min-w-[150px]">
-                  <div className="flex items-center justify-end gap-1.5">
-                    {roleIcon}
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-amber-300 truncate max-w-[130px] sm:max-w-none">
-                      {roleLabel}
-                    </span>
-                  </div>
-                  <span className="font-semibold text-white text-[10px] sm:text-[11px] truncate max-w-[140px] sm:max-w-[180px]">
-                    {user?.full_name || 'Railway Officer'}
-                  </span>
-                </div>
-                <ChevronDown className="h-3 w-3 text-blue-200" />
+          {/* 3. Verified Officer Role Badge - STRICTLY FIXED: No manual role switching permitted! */}
+          <div className="bg-[#134074] px-3 py-1 rounded border border-blue-400/30 flex items-center gap-2 shadow-sm cursor-default">
+            <div className="flex items-center justify-center p-1.5 rounded bg-[#0B2545] border border-blue-400/20">
+              {roleIcon}
+            </div>
+            <div className="flex flex-col text-right min-w-[120px] sm:min-w-[160px]">
+              <div className="flex items-center justify-end gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                <span className="text-[9px] uppercase font-bold tracking-wider text-amber-300 truncate max-w-[140px] sm:max-w-none">
+                  {roleLabel}
+                </span>
               </div>
-            </Tooltip>
-
-            {/* Role Switch Dropdown */}
-            {showRoleMenu && (
-              <div className="absolute right-0 mt-1.5 w-72 bg-white text-slate-800 rounded-lg shadow-2xl border-2 border-[#134074] py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
-                  {t('role.switch', 'Switch Active Role Clearance')}
-                </div>
-
-                <button
-                  onClick={() => handleRoleSwitch('ADMIN')}
-                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
-                    user?.role === 'ADMIN' ? 'bg-blue-50 font-bold text-[#0B2545]' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded bg-blue-100 text-[#0B2545]">
-                      <Building2 className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#0B2545]">{t('role.admin', 'Admin (Sr. DOM)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Executive Sanction & Human Approval</div>
-                    </div>
-                  </div>
-                  {user?.role === 'ADMIN' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
-                </button>
-
-                <button
-                  onClick={() => handleRoleSwitch('PLANNER')}
-                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
-                    user?.role === 'PLANNER' ? 'bg-blue-50 font-bold text-[#134074]' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded bg-indigo-100 text-[#134074]">
-                      <Radio className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#134074]">{t('role.ops', 'Planner (Section Controller)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Train Headways & Plan Submissions</div>
-                    </div>
-                  </div>
-                  {user?.role === 'PLANNER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
-                </button>
-
-                <button
-                  onClick={() => handleRoleSwitch('WORKER')}
-                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-rose-50 transition-colors cursor-pointer ${
-                    user?.role === 'WORKER' ? 'bg-rose-50 font-bold text-[#A6192E]' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded bg-rose-100 text-[#A6192E]">
-                      <HardHat className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#A6192E]">{t('role.worker', 'Worker (SSE P-Way)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Field Trackwork & Defect Updates</div>
-                    </div>
-                  </div>
-                  {user?.role === 'WORKER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
-                </button>
-
-                <button
-                  onClick={() => handleRoleSwitch('VIEWER')}
-                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-teal-50 transition-colors cursor-pointer ${
-                    user?.role === 'VIEWER' ? 'bg-teal-50 font-bold text-teal-800' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded bg-teal-100 text-teal-800">
-                      <Eye className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-teal-900">{t('role.viewer', 'Viewer (Station Staff / Observer)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Operational Read-Only & Problem Reporting</div>
-                    </div>
-                  </div>
-                  {user?.role === 'VIEWER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
-                </button>
-
-                <div className="border-t border-slate-100 my-1"></div>
-
-                <button
-                  onClick={() => {
-                    logout()
-                    navigate('/login')
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
-                >
-                  <LogOut className="h-3.5 w-3.5" /> {t('sign.out', 'Sign Out of RailNet')}
-                </button>
-              </div>
-            )}
+              <span className="font-semibold text-white text-[11px] sm:text-[12px] truncate max-w-[150px] sm:max-w-[200px]">
+                {user?.full_name || 'Railway Officer'}
+              </span>
+              <span className="text-[9px] text-blue-200 truncate max-w-[150px] sm:max-w-[200px]">
+                {user?.department || 'Operations'} • {user?.division || 'CR-BB'}
+              </span>
+            </div>
           </div>
 
-          {/* 4. Logout Button */}
+          {/* 4. Logout / Sign Out Button */}
           <Tooltip content={t('tt.logout', 'Sign out of current RailNet session')} position="bottom">
             <button
-              onClick={() => {
-                logout()
-                navigate('/login')
-              }}
-              className="p-1.5 bg-[#134074]/80 hover:bg-red-900/60 text-slate-300 hover:text-red-200 rounded border border-blue-400/20 transition-all duration-200 active:scale-95 cursor-pointer"
+              onClick={handleSignOut}
+              className="px-2.5 py-1.5 bg-[#A6192E] hover:bg-[#851424] text-white rounded border border-rose-400/30 transition-all duration-200 flex items-center gap-1.5 font-semibold text-xs shadow-sm active:scale-95 cursor-pointer"
             >
               <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t('sign.out', 'Sign Out')}</span>
             </button>
           </Tooltip>
         </div>
