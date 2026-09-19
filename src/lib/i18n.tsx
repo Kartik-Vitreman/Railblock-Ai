@@ -29,6 +29,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin': 'Administration (Sr. DOM)',
     'role.ops': 'Operational Dept (Controller)',
     'role.worker': 'Workers & Engineering (SSE P-Way)',
+    'role.viewer': 'Viewer (Station Staff / Observer)',
     'sign.out': 'Sign Out',
     'sign.in': 'Sign In',
 
@@ -42,6 +43,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'nav.maint_requests': 'Maintenance Requests',
     'nav.assets': 'Asset Intelligence',
     'nav.alerts': 'Operational Alerts',
+    'nav.complaints': 'Report a Problem / Complaints',
     'nav.ai_support': 'AI & DECISION SUPPORT',
     'nav.optimization': 'Plan Optimization',
     'nav.simulation': 'What-If Simulation',
@@ -54,9 +56,11 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin_desc': 'Executive Sanction Authority • CP-SAT Optimization Tuning',
     'role.ops_desc': 'Real-Time Train Movements • Headway Regulation • Punctuality',
     'role.worker_desc': 'P-Way Track Maintenance • Defect Logs • Machine Requisition',
+    'role.viewer_desc': 'Operational Read-Only • Report Safety & Operational Problems',
     'role.badge.admin': 'DRM / HQ LEVEL',
     'role.badge.ops': 'SECTION CONTROL',
     'role.badge.worker': 'FIELD P-WAY',
+    'role.badge.viewer': 'STATION / SAFETY OBSERVER',
 
     // Common Buttons & Tooltips
     'btn.approve': 'Sanction Block',
@@ -115,6 +119,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin': 'प्रशासन (वरिष्ठ मंडल परिचालन प्रबंधक - Sr. DOM)',
     'role.ops': 'परिचालन विभाग (सेक्शन नियंत्रक)',
     'role.worker': 'कार्यकर्ता व फील्ड इंजीनियरिंग (एसएसई पी-वे)',
+    'role.viewer': 'दर्शक (स्टेशन स्टाफ / सुरक्षा पर्यवेक्षक)',
     'sign.out': 'लॉग आउट',
     'sign.in': 'साइन इन करें',
 
@@ -128,6 +133,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'nav.maint_requests': 'रखरखाव कार्य आदेश',
     'nav.assets': 'रेल संपत्ति प्रबंधन',
     'nav.alerts': 'परिचालन चेतावनियां',
+    'nav.complaints': 'समस्या व शिकायत रिपोर्टिंग',
     'nav.ai_support': 'एआई एवं निर्णय सहायता',
     'nav.optimization': 'सीपी-सैट प्लान अनुकूलन',
     'nav.simulation': 'सिमुलेशन विश्लेषण',
@@ -140,9 +146,11 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin_desc': 'कार्यकारी स्वीकृति अधिकार • सीपी-सैट ऑप्टिमाइज़ेशन नियंत्रण',
     'role.ops_desc': 'वास्तविक समय ट्रेन संचलन • समय-सारणी हेडवे नियंत्रण',
     'role.worker_desc': 'ट्रैक रखरखाव • रेल दोष लॉगिंग • ट्रैक मशीन मांग',
+    'role.viewer_desc': 'केवल पठन योग्य परिचालन • सुरक्षा एवं परिचालन संबंधी शिकायत दर्ज करें',
     'role.badge.admin': 'मंडल रेल प्रबंधक स्तर',
     'role.badge.ops': 'नियंत्रण कक्ष',
     'role.badge.worker': 'फील्ड पी-वे स्टाफ',
+    'role.badge.viewer': 'स्टेशन / सुरक्षा पर्यवेक्षक',
 
     // Common Buttons & Tooltips
     'btn.approve': 'ब्लॉक स्वीकृत करें',
@@ -201,6 +209,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin': 'நிர்வாகம் (சீனியர் DOM)',
     'role.ops': 'செயல்பாட்டுத் துறை (கட்டுப்பாட்டாளர்)',
     'role.worker': 'களப் பொறியியல் தொழிலாளர்கள் (SSE P-Way)',
+    'role.viewer': 'பார்வையாளர் (நிலைய ஊழியர் / பாதுகாப்பு பார்வையாளர்)',
     'sign.out': 'வெளியேறு',
     'sign.in': 'உள்நுழைக',
 
@@ -214,6 +223,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'nav.maint_requests': 'பராமரிப்பு கோரிக்கைகள்',
     'nav.assets': 'சொத்து நுண்ணறிவு',
     'nav.alerts': 'செயல்பாட்டு எச்சரிக்கைகள்',
+    'nav.complaints': 'சிக்கல் மற்றும் புகார் அறிக்கை',
     'nav.ai_support': 'AI & முடிவு ஆதரவு',
     'nav.optimization': 'CP-SAT தேர்வுமுறை',
     'nav.simulation': 'மாதிரி உருவகப்படுத்துதல்',
@@ -226,9 +236,11 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin_desc': 'நிர்வாக ஒப்புதல் அதிகாரம் • CP-SAT உகப்பாக்கம் கட்டுப்பாடு',
     'role.ops_desc': 'நிகழ்நேர ரயில் இயக்கம் • நேரக் கட்டுப்பாடு • தாமத தடுப்பு',
     'role.worker_desc': 'தண்டவாள பராமரிப்பு • குறைபாடு பதிவு • இயந்திர கோரிக்கை',
+    'role.viewer_desc': 'பார்வைக்கு மட்டும் • பாதுகாப்பு & செயல்பாட்டு பிரச்சனைகள் பதிவு செய்க',
     'role.badge.admin': 'தலைமையக அதிகாரம்',
     'role.badge.ops': 'கட்டுப்பாட்டு அறை',
     'role.badge.worker': 'களப் பணியாளர்',
+    'role.badge.viewer': 'நிலைய / பாதுகாப்பு பார்வையாளர்',
 
     // Common Buttons & Tooltips
     'btn.approve': 'பிளாக் அனுமதி',
@@ -287,6 +299,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin': 'పరిపాలన (సీనియర్ DOM)',
     'role.ops': 'కార్యాచరణ విభాగం (కంట్రోలర్)',
     'role.worker': 'ఫీల్డ్ ఇంజనీరింగ్ వర్కర్లు (SSE P-Way)',
+    'role.viewer': 'వీక్షకుడు (స్టేషన్ సిబ్బంది / భద్రతా పరిశీలకుడు)',
     'sign.out': 'సైన్ అవుట్',
     'sign.in': 'సైన్ ఇన్',
 
@@ -300,6 +313,7 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'nav.maint_requests': 'నిర్వహణ అభ్యర్థనలు',
     'nav.assets': 'రైల్వే ఆస్తుల నిర్వహణ',
     'nav.alerts': 'ఆపరేషనల్ హెచ్చరికలు',
+    'nav.complaints': 'సమస్య మరియు ఫిర్యాదుల నమోదు',
     'nav.ai_support': 'AI & నిర్ణయ మద్దతు',
     'nav.optimization': 'CP-SAT ప్లాన్ ఆప్టిమైజేషన్',
     'nav.simulation': 'వాట్-ఇఫ్ సిమ్యులేషన్',
@@ -312,9 +326,11 @@ export const translations: Record<SupportedLanguage, Record<string, string>> = {
     'role.admin_desc': 'ఎగ్జిక్యూటివ్ అనుమతి అధికారం • CP-SAT ఆప్టిమైజేషన్ ట్యూనింగ్',
     'role.ops_desc': 'నిజ-సమయ రైలు కదలికలు • షెడ్యూల్ నియంత్రణ • సమయపాలన',
     'role.worker_desc': 'ట్రాక్ నిర్వహణ • లోపాల నమోదు • ట్రాక్ మెషిన్ రిక్విజిషన్',
+    'role.viewer_desc': 'పరిశీలన మాత్రమే • భద్రతా సమస్యలు మరియు ఫిర్యాదుల నమోదు',
     'role.badge.admin': 'DRM / ప్రధాన కార్యాలయ స్థాయి',
     'role.badge.ops': 'సెక్షన్ కంట్రోల్ రూమ్',
     'role.badge.worker': 'ఫీల్డ్ P-WAY సిబ్బంది',
+    'role.badge.viewer': 'స్టేషన్ / భద్రతా పరిశీలకుడు',
 
     // Common Buttons & Tooltips
     'btn.approve': 'బ్లాక్ ఆమోదించండి',

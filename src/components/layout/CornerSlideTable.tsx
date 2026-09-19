@@ -292,7 +292,7 @@ export function CornerSlideTable() {
                             </Badge>
                           </td>
                           <td className="p-2.5 text-right">
-                            {user?.role === 'ADMINISTRATION' && blk.status === 'PROPOSED' ? (
+                            {user?.role === 'ADMIN' && (blk.status === 'PROPOSED' || blk.status === 'PENDING_APPROVAL') ? (
                               <span className="text-[10px] text-emerald-700 font-bold hover:underline cursor-pointer">
                                 Sanction
                               </span>

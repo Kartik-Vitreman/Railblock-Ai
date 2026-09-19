@@ -103,6 +103,118 @@ export interface MaintenanceRequest {
   corridor?: string
 }
 
+export type UserRole = 'ADMIN' | 'PLANNER' | 'WORKER' | 'VIEWER'
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string
+  full_name: string
+  role: UserRole
+  department: string
+  designation: string
+  division: string
+  clearance: string
+  permissions: string[]
+  created_at?: string
+  status?: 'ACTIVE' | 'SUSPENDED'
+}
+
+export type ComplaintCategory =
+  | 'Track / Infrastructure Issue'
+  | 'Signal & Telecom Issue'
+  | 'Electrical / Traction Issue'
+  | 'Asset Failure'
+  | 'Safety Issue'
+  | 'Train Operation Issue'
+  | 'Block Planning Issue'
+  | 'Maintenance Issue'
+  | 'TRACK_DEFECT'
+  | 'SIGNAL_FAILURE'
+  | 'OHE_TRACTION'
+  | 'SAFETY_HAZARD'
+  | 'STATION_AMENITY'
+  | 'TRAIN_DELAY_ISSUE'
+  | 'OTHER'
+  | string
+
+export type ComplaintPriority = 'Low' | 'Medium' | 'High' | 'Critical' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+export type ComplaintStatus =
+  | 'Submitted'
+  | 'Assigned'
+  | 'In Progress'
+  | 'Resolved'
+  | 'Closed'
+  | 'SUBMITTED'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'CLOSED'
+
+export interface ComplaintTimelineItem {
+  id: string
+  timestamp: string
+  user_id: string
+  user_name: string
+  user_role: string
+  action: string
+  notes: string
+}
+
+export interface Complaint {
+  id: string
+  title: string
+  category: ComplaintCategory
+  description: string
+  location: string
+  station?: string
+  zone?: string
+  section_id?: string
+  asset_id?: string
+  block_id?: string
+  incident_time?: string
+  priority: ComplaintPriority
+  supporting_file?: string
+  status: ComplaintStatus
+  submitted_by_id?: string
+  submitted_by_name?: string
+  submitted_by_email?: string
+  submitted_by_role?: string
+  reported_by_id?: string
+  reported_by_name?: string
+  reported_by_role?: UserRole | string
+  assigned_to_id?: string | null
+  assigned_to_name?: string | null
+  assigned_to_role?: UserRole | string | null
+  assigned_department?: string
+  worker_notes?: string
+  investigation_notes?: string
+  resolution_details?: string
+  resolution_summary?: string
+  admin_response?: string
+  resolved_at?: string | null
+  closed_at?: string | null
+  created_at: string
+  updated_at: string
+  timeline?: ComplaintTimelineItem[]
+}
+
+export interface AuditLogItem {
+  id: string
+  action: string
+  user: string
+  user_id?: string
+  user_role?: string
+  entity_type: string
+  entity_id: string
+  details: string
+  timestamp: string
+  previous_status?: string
+  new_status?: string
+  resolution_info?: string
+}
+
 export interface BlockRequest {
   id: string
   block_type: 'TRAFFIC' | 'POWER_OHE' | 'INTEGRATED' | 'SIGNAL'
@@ -111,7 +223,7 @@ export interface BlockRequest {
   start_time: string
   end_time: string
   requested_duration_hours: number
-  status: 'REQUESTED' | 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED'
+  status: 'REQUESTED' | 'DRAFT' | 'PROPOSED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED'
   department: string
   purpose: string
   approving_officer: string | null
@@ -134,3 +246,29 @@ export interface Alert {
   created_at: string
   acknowledged: boolean
 }
+
+export interface UserAccountDTO {
+  id: string
+  email: string
+  full_name: string
+  role: UserRole
+  department: string
+  designation: string
+  division: string
+  clearance: string
+  permissions: string[]
+  is_active: boolean
+  last_login?: string
+}
+
+export interface SystemSettingsDTO {
+  maintenance_window_mode: string
+  auto_dispatch_kavach: boolean
+  enforce_strict_headway_seconds: number
+  interlocking_override_protection: boolean
+  audit_retention_days: number
+  solver_timeout_seconds: number
+  division_code: string
+  emergency_protocol_active: boolean
+}
+

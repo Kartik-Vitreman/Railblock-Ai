@@ -231,12 +231,121 @@ export const blocksApi = {
     const { data } = await apiClient.post('/api/v1/blocks', payload)
     return data
   },
-  approve: async (id: string, officer_name?: string) => {
-    const { data } = await apiClient.post(`/api/v1/blocks/${id}/approve`, { officer_name })
+  submitForApproval: async (id: string, notes?: string) => {
+    const { data } = await apiClient.post(`/api/v1/blocks/${id}/submit-approval`, { notes })
+    return data
+  },
+  approve: async (id: string, officer_name?: string, notes?: string) => {
+    const { data } = await apiClient.post(`/api/v1/blocks/${id}/approve`, { officer_name, notes })
+    return data
+  },
+  humanApprove: async (id: string, officer_name?: string, notes?: string) => {
+    const { data } = await apiClient.post(`/api/v1/blocks/${id}/human-approve`, { officer_name, notes })
     return data
   },
   reject: async (id: string, reason?: string) => {
     const { data } = await apiClient.post(`/api/v1/blocks/${id}/reject`, { reason })
+    return data
+  },
+  update: async (id: string, payload: any) => {
+    const { data } = await apiClient.put(`/api/v1/blocks/${id}`, payload)
+    return data
+  },
+}
+
+export const complaintsApi = {
+  listMy: async () => {
+    const { data } = await apiClient.get('/api/v1/complaints/my')
+    return normalizeList(data)
+  },
+  listAll: async (params?: any) => {
+    const { data } = await apiClient.get('/api/v1/complaints/all', { params })
+    return normalizeList(data)
+  },
+  listAssigned: async () => {
+    const { data } = await apiClient.get('/api/v1/complaints/assigned')
+    return normalizeList(data)
+  },
+  listPlanning: async () => {
+    const { data } = await apiClient.get('/api/v1/complaints/planning')
+    return normalizeList(data)
+  },
+  list: async (params?: any) => {
+    const { data } = await apiClient.get('/api/v1/complaints', { params })
+    return normalizeList(data)
+  },
+  get: async (id: string) => {
+    const { data } = await apiClient.get(`/api/v1/complaints/${id}`)
+    return data
+  },
+  getById: async (id: string) => {
+    const { data } = await apiClient.get(`/api/v1/complaints/${id}`)
+    return data
+  },
+  create: async (payload: any) => {
+    const { data } = await apiClient.post('/api/v1/complaints', payload)
+    return data
+  },
+  assign: async (
+    id: string,
+    assignedOrPayload: string | { assigned_to_id: string; assigned_to_name?: string; assigned_department?: string; notes?: string; priority?: string },
+    priority?: string
+  ) => {
+    const payload =
+      typeof assignedOrPayload === 'string'
+        ? { assigned_to_id: assignedOrPayload, priority }
+        : assignedOrPayload
+    const { data } = await apiClient.put(`/api/v1/complaints/${id}/assign`, payload)
+    return data
+  },
+  updatePriority: async (id: string, priority: string, notes?: string) => {
+    const { data } = await apiClient.put(`/api/v1/complaints/${id}/priority`, { priority, notes })
+    return data
+  },
+  workerUpdate: async (id: string, payload: { worker_notes?: string; resolution_summary?: string; investigation_notes?: string; resolution_details?: string; status?: string; mark_resolved?: boolean }) => {
+    const { data } = await apiClient.put(`/api/v1/complaints/${id}/worker-update`, payload)
+    return data
+  },
+  updateStatus: async (id: string, payload: { status: string; notes?: string; admin_response?: string; resolution_summary?: string; worker_notes?: string }) => {
+    const { data } = await apiClient.put(`/api/v1/complaints/${id}/status`, payload)
+    return data
+  },
+  delete: async (id: string) => {
+    const { data } = await apiClient.delete(`/api/v1/complaints/${id}`)
+    return data
+  },
+}
+
+export const usersApi = {
+  list: async () => {
+    const { data } = await apiClient.get('/api/v1/users')
+    return normalizeList(data)
+  },
+  create: async (payload: any) => {
+    const { data } = await apiClient.post('/api/v1/users', payload)
+    return data
+  },
+  update: async (id: string, payload: any) => {
+    const { data } = await apiClient.put(`/api/v1/users/${id}`, payload)
+    return data
+  },
+  updateRole: async (id: string, role: string, permissions?: string[]) => {
+    const { data } = await apiClient.put(`/api/v1/users/${id}/role`, { role, permissions })
+    return data
+  },
+  delete: async (id: string) => {
+    const { data } = await apiClient.delete(`/api/v1/users/${id}`)
+    return data
+  },
+}
+
+export const settingsApi = {
+  get: async () => {
+    const { data } = await apiClient.get('/api/v1/settings')
+    return data
+  },
+  update: async (payload: any) => {
+    const { data } = await apiClient.put('/api/v1/settings', payload)
     return data
   },
 }
@@ -338,6 +447,9 @@ export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     if (error.response?.data?.detail) {
       return String(error.response.data.detail)
+    }
+    if (error.response?.data?.error) {
+      return String(error.response.data.error)
     }
     if (error.message === 'Network Error') {
       return 'Connecting to RailBlock AI server...'

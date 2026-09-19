@@ -16,11 +16,16 @@ import {
   HardHat,
   Radio,
   Building2,
+  Eye,
+  LifeBuoy,
+  Users,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
 import { useTranslation } from '@/lib/i18n'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { UserRole } from '@/types'
 
 interface NavItem {
   labelKey: string
@@ -28,13 +33,15 @@ interface NavItem {
   path: string
   icon: any
   badge?: string
-  priorityForRole?: 'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS'
+  priorityForRole?: UserRole
+  allowedRoles?: UserRole[]
   tooltipDesc: string
 }
 
 interface NavSection {
   titleKey: string
   defaultTitle: string
+  allowedRoles?: UserRole[]
   items: NavItem[]
 }
 
@@ -48,7 +55,7 @@ const navSections: NavSection[] = [
         defaultLabel: 'Train Operations',
         path: '/trains',
         icon: Train,
-        priorityForRole: 'OPERATIONS',
+        priorityForRole: 'PLANNER',
         tooltipDesc: 'Real-time train monitoring, timetable regulation, and Kavach ATP status',
       },
       {
@@ -56,29 +63,46 @@ const navSections: NavSection[] = [
         defaultLabel: 'Block Planning',
         path: '/blocks',
         icon: CalendarDays,
-        priorityForRole: 'OPERATIONS',
-        tooltipDesc: 'Interactive corridor possession scheduling and timetable clash detection',
+        priorityForRole: 'PLANNER',
+        allowedRoles: ['ADMIN', 'PLANNER', 'WORKER'],
+        tooltipDesc: 'Corridor possession scheduling, AI solver plans, and human approval workflow',
       },
       {
         labelKey: 'nav.network',
         defaultLabel: 'Schedule & National GIS',
         path: '/network',
         icon: MapPin,
-        priorityForRole: 'OPERATIONS',
+        priorityForRole: 'PLANNER',
         tooltipDesc: 'Pan-India 17-zone network map, junctions, and live line block overlays',
+      },
+    ],
+  },
+  {
+    titleKey: 'nav.safety_complaints',
+    defaultTitle: 'REPORTING & COMPLAINTS',
+    items: [
+      {
+        labelKey: 'nav.complaints',
+        defaultLabel: 'Complaints & Problems',
+        path: '/complaints',
+        icon: LifeBuoy,
+        badge: 'RBAC',
+        priorityForRole: 'VIEWER',
+        tooltipDesc: 'Report and manage operational problems, track faults, and safety complaints',
       },
     ],
   },
   {
     titleKey: 'nav.maintenance',
     defaultTitle: 'MAINTENANCE',
+    allowedRoles: ['ADMIN', 'PLANNER', 'WORKER'],
     items: [
       {
         labelKey: 'nav.maint_requests',
         defaultLabel: 'Maintenance Requests',
         path: '/maintenance',
         icon: Wrench,
-        priorityForRole: 'WORKERS',
+        priorityForRole: 'WORKER',
         tooltipDesc: 'File P-Way work orders, rail renewal requisitions, and machine slots',
       },
       {
@@ -86,7 +110,7 @@ const navSections: NavSection[] = [
         defaultLabel: 'Asset Intelligence',
         path: '/assets',
         icon: Database,
-        priorityForRole: 'WORKERS',
+        priorityForRole: 'WORKER',
         tooltipDesc: 'Track condition index (TGI), USFD rail defect logs, and bridge assets',
       },
       {
@@ -101,6 +125,7 @@ const navSections: NavSection[] = [
   {
     titleKey: 'nav.ai_support',
     defaultTitle: 'AI & DECISION SUPPORT',
+    allowedRoles: ['ADMIN', 'PLANNER'],
     items: [
       {
         labelKey: 'nav.optimization',
@@ -108,7 +133,7 @@ const navSections: NavSection[] = [
         path: '/optimization',
         icon: GitCompare,
         badge: 'CP-SAT',
-        priorityForRole: 'ADMINISTRATION',
+        priorityForRole: 'ADMIN',
         tooltipDesc: 'Google OR-Tools CP-SAT discrete optimization for zero-conflict block plans',
       },
       {
@@ -130,7 +155,7 @@ const navSections: NavSection[] = [
         defaultLabel: 'Official Reports',
         path: '/reports',
         icon: FileText,
-        priorityForRole: 'ADMINISTRATION',
+        priorityForRole: 'ADMIN',
         tooltipDesc: 'Generate statutory Railway Board joint circular certifications and logs',
       },
     ],
@@ -138,13 +163,33 @@ const navSections: NavSection[] = [
   {
     titleKey: 'nav.admin_compliance',
     defaultTitle: 'ADMINISTRATION & COMPLIANCE',
+    allowedRoles: ['ADMIN'],
     items: [
+      {
+        labelKey: 'nav.users',
+        defaultLabel: 'User Management',
+        path: '/users',
+        icon: Users,
+        priorityForRole: 'ADMIN',
+        allowedRoles: ['ADMIN'],
+        tooltipDesc: 'Manage personnel accounts, assign authorized roles, and inspect security clearance',
+      },
+      {
+        labelKey: 'nav.settings',
+        defaultLabel: 'System Settings',
+        path: '/settings',
+        icon: Settings,
+        priorityForRole: 'ADMIN',
+        allowedRoles: ['ADMIN'],
+        tooltipDesc: 'Configure divisional parameters, safety interlocking, and solver constraints',
+      },
       {
         labelKey: 'nav.audit',
         defaultLabel: 'Audit Compliance',
         path: '/audit',
         icon: FileCheck2,
-        priorityForRole: 'ADMINISTRATION',
+        priorityForRole: 'ADMIN',
+        allowedRoles: ['ADMIN'],
         tooltipDesc: 'Immutable officer sign-off trail, cryptographically logged for safety inspection',
       },
     ],
@@ -161,10 +206,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useTranslation()
 
   const roleTag =
-    user?.role === 'WORKERS'
+    user?.role === 'WORKER'
       ? { label: t('role.badge.worker', 'FIELD P-WAY FOCUS'), icon: HardHat, color: 'text-rose-300 border-rose-400/40 bg-rose-950/40' }
-      : user?.role === 'OPERATIONS'
+      : user?.role === 'PLANNER'
       ? { label: t('role.badge.ops', 'TRAIN CONTROL FOCUS'), icon: Radio, color: 'text-blue-300 border-blue-400/40 bg-blue-950/40' }
+      : user?.role === 'VIEWER'
+      ? { label: t('role.badge.viewer', 'SAFETY OBSERVER'), icon: Eye, color: 'text-teal-300 border-teal-400/40 bg-teal-950/40' }
       : { label: t('role.badge.admin', 'SANCTION AUTHORITY'), icon: Building2, color: 'text-amber-300 border-amber-400/40 bg-amber-950/40' }
 
   return (
@@ -213,7 +260,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Role Adaptation Indicator Pill */}
         <div className="mx-3 mt-2.5 p-2 rounded border flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider font-bold shadow-inner justify-between transition-colors duration-200"
-          style={{ backgroundColor: user?.role === 'WORKERS' ? '#3d0c14' : user?.role === 'OPERATIONS' ? '#082040' : '#2d1f05' }}
+          style={{
+            backgroundColor:
+              user?.role === 'WORKER'
+                ? '#3d0c14'
+                : user?.role === 'PLANNER'
+                ? '#082040'
+                : user?.role === 'VIEWER'
+                ? '#08332f'
+                : '#2d1f05',
+          }}
         >
           <div className="flex items-center gap-1.5 min-w-0">
             <roleTag.icon className="h-3.5 w-3.5 shrink-0 text-amber-300" />
@@ -226,63 +282,71 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Nav Sections with Role Prioritization & Tooltips */}
         <div className="flex-1 overflow-y-auto py-2 space-y-4 px-2">
-          {navSections.map((section) => (
-            <div key={section.titleKey} className="space-y-1">
-              <div className="px-3 py-1 text-[10px] font-bold tracking-wider text-blue-300 uppercase flex items-center justify-between">
-                <span>{t(section.titleKey, section.defaultTitle)}</span>
-              </div>
-              {section.items.map((item) => {
-                const Icon = item.icon
-                const isPriority = item.priorityForRole === user?.role
-                return (
-                  <Tooltip
-                    key={item.path}
-                    content={item.tooltipDesc}
-                    position="right"
-                    className="hidden lg:inline-flex"
-                  >
-                    <NavLink
-                      to={item.path}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex items-center justify-between px-3 py-1.5 rounded transition-all duration-200 group w-full',
-                          isActive
-                            ? 'bg-[#134074] text-white font-semibold border-l-3 border-amber-400 shadow-sm'
-                            : 'text-slate-300 hover:bg-[#134074]/60 hover:text-white',
-                          isPriority && !isActive && 'bg-[#134074]/20 text-blue-100',
-                        )
-                      }
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon
-                          className={cn(
-                            'h-3.5 w-3.5 shrink-0 transition-colors',
-                            isPriority
-                              ? 'text-amber-300'
-                              : 'text-blue-300 group-hover:text-amber-300',
-                          )}
-                        />
-                        <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {isPriority && (
-                          <span className="text-[8px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-1 py-0.2 rounded font-mono font-bold">
-                            CORE
-                          </span>
-                        )}
-                        {item.badge && (
-                          <span className="text-[9px] bg-blue-500/20 text-blue-200 border border-blue-400/30 px-1 py-0.2 rounded font-mono font-bold">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    </NavLink>
-                  </Tooltip>
-                )
-              })}
-            </div>
-          ))}
+          {navSections
+            .filter((section) => !section.allowedRoles || (user && section.allowedRoles.includes(user.role)))
+            .map((section) => {
+              const visibleItems = section.items.filter(
+                (item) => !item.allowedRoles || (user && item.allowedRoles.includes(user.role)),
+              )
+              if (visibleItems.length === 0) return null
+              return (
+                <div key={section.titleKey} className="space-y-1">
+                  <div className="px-3 py-1 text-[10px] font-bold tracking-wider text-blue-300 uppercase flex items-center justify-between">
+                    <span>{t(section.titleKey, section.defaultTitle)}</span>
+                  </div>
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon
+                    const isPriority = item.priorityForRole === user?.role
+                    return (
+                      <Tooltip
+                        key={item.path}
+                        content={item.tooltipDesc}
+                        position="right"
+                        className="hidden lg:inline-flex"
+                      >
+                        <NavLink
+                          to={item.path}
+                          onClick={onClose}
+                          className={({ isActive }) =>
+                            cn(
+                              'flex items-center justify-between px-3 py-1.5 rounded transition-all duration-200 group w-full',
+                              isActive
+                                ? 'bg-[#134074] text-white font-semibold border-l-3 border-amber-400 shadow-sm'
+                                : 'text-slate-300 hover:bg-[#134074]/60 hover:text-white',
+                              isPriority && !isActive && 'bg-[#134074]/20 text-blue-100',
+                            )
+                          }
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Icon
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0 transition-colors',
+                                isPriority
+                                  ? 'text-amber-300'
+                                  : 'text-blue-300 group-hover:text-amber-300',
+                              )}
+                            />
+                            <span className="truncate">{t(item.labelKey, item.defaultLabel)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isPriority && (
+                              <span className="text-[8px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-1 py-0.2 rounded font-mono font-bold">
+                                CORE
+                              </span>
+                            )}
+                            {item.badge && (
+                              <span className="text-[8px] bg-blue-500/30 text-blue-200 border border-blue-400/30 px-1 py-0.2 rounded font-mono font-bold">
+                                {item.badge}
+                              </span>
+                            )}
+                          </div>
+                        </NavLink>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+              )
+            })}
         </div>
 
         {/* Footer / Department Information */}

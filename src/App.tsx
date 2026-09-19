@@ -16,6 +16,7 @@ import { Scenarios } from '@/pages/Scenarios'
 import { Alerts } from '@/pages/Alerts'
 import { Reports } from '@/pages/Reports'
 import { Audit } from '@/pages/Audit'
+import { Complaints } from '@/pages/Complaints'
 
 /**
  * RAILBLOCK AI ?" Application Router
@@ -41,6 +42,7 @@ function App() {
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/audit" element={<Audit />} />
+          <Route path="/complaints" element={<Complaints />} />
           
           {/* Catch-all ?" redirect unknown paths to home */}
           <Route path="*" element={<Navigate to="/" replace />} />

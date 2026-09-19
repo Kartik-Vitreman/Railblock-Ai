@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/auth'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation, SUPPORTED_LANGUAGES, SupportedLanguage } from '@/lib/i18n'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { UserRole } from '@/types'
 import {
   Clock,
   LogOut,
@@ -14,6 +15,7 @@ import {
   Globe,
   Menu,
   Check,
+  Eye,
 } from 'lucide-react'
 
 interface HeaderProps {
@@ -54,25 +56,29 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
     return () => clearInterval(timer)
   }, [])
 
-  const handleRoleSwitch = (role: 'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS') => {
+  const handleRoleSwitch = (role: UserRole) => {
     switchUser(role)
     setShowRoleMenu(false)
   }
 
   const roleLabel =
-    user?.role === 'ADMINISTRATION'
-      ? t('role.admin', 'ADMINISTRATION (SR. DOM)')
-      : user?.role === 'OPERATIONS'
-      ? t('role.ops', 'OPERATIONAL DEPT (CONTROLLER)')
-      : t('role.worker', 'WORKERS (SSE P-WAY)')
+    user?.role === 'ADMIN'
+      ? t('role.admin', 'ADMIN (SR. DOM)')
+      : user?.role === 'PLANNER'
+      ? t('role.ops', 'PLANNER (CONTROLLER)')
+      : user?.role === 'WORKER'
+      ? t('role.worker', 'WORKER (FIELD STAFF)')
+      : t('role.viewer', 'VIEWER (OBSERVER)')
 
   const roleIcon =
-    user?.role === 'ADMINISTRATION' ? (
+    user?.role === 'ADMIN' ? (
       <Building2 className="h-3.5 w-3.5 text-amber-300" />
-    ) : user?.role === 'OPERATIONS' ? (
+    ) : user?.role === 'PLANNER' ? (
       <Radio className="h-3.5 w-3.5 text-blue-300" />
-    ) : (
+    ) : user?.role === 'WORKER' ? (
       <HardHat className="h-3.5 w-3.5 text-rose-300" />
+    ) : (
+      <Eye className="h-3.5 w-3.5 text-teal-300" />
     )
 
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0]
@@ -218,9 +224,9 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 </div>
 
                 <button
-                  onClick={() => handleRoleSwitch('ADMINISTRATION')}
+                  onClick={() => handleRoleSwitch('ADMIN')}
                   className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
-                    user?.role === 'ADMINISTRATION' ? 'bg-blue-50 font-bold text-[#0B2545]' : ''
+                    user?.role === 'ADMIN' ? 'bg-blue-50 font-bold text-[#0B2545]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -228,17 +234,17 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                       <Building2 className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-[#0B2545]">{t('role.admin', 'Administration (Sr. DOM)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Sanction Authority & Solver Tuning</div>
+                      <div className="text-xs font-bold text-[#0B2545]">{t('role.admin', 'Admin (Sr. DOM)')}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">Executive Sanction & Human Approval</div>
                     </div>
                   </div>
-                  {user?.role === 'ADMINISTRATION' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
+                  {user?.role === 'ADMIN' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
                 </button>
 
                 <button
-                  onClick={() => handleRoleSwitch('OPERATIONS')}
+                  onClick={() => handleRoleSwitch('PLANNER')}
                   className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors cursor-pointer ${
-                    user?.role === 'OPERATIONS' ? 'bg-blue-50 font-bold text-[#134074]' : ''
+                    user?.role === 'PLANNER' ? 'bg-blue-50 font-bold text-[#134074]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -246,17 +252,17 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                       <Radio className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-[#134074]">{t('role.ops', 'Operational Dept (Controller)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Train Headways & Punctuality</div>
+                      <div className="text-xs font-bold text-[#134074]">{t('role.ops', 'Planner (Section Controller)')}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">Train Headways & Plan Submissions</div>
                     </div>
                   </div>
-                  {user?.role === 'OPERATIONS' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
+                  {user?.role === 'PLANNER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
                 </button>
 
                 <button
-                  onClick={() => handleRoleSwitch('WORKERS')}
+                  onClick={() => handleRoleSwitch('WORKER')}
                   className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-rose-50 transition-colors cursor-pointer ${
-                    user?.role === 'WORKERS' ? 'bg-rose-50 font-bold text-[#A6192E]' : ''
+                    user?.role === 'WORKER' ? 'bg-rose-50 font-bold text-[#A6192E]' : ''
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -264,11 +270,29 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                       <HardHat className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-[#A6192E]">{t('role.worker', 'Workers & Engineering (SSE P-Way)')}</div>
-                      <div className="text-[10px] text-slate-500 font-normal">Field Trackwork & Defect Requisitions</div>
+                      <div className="text-xs font-bold text-[#A6192E]">{t('role.worker', 'Worker (SSE P-Way)')}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">Field Trackwork & Defect Updates</div>
                     </div>
                   </div>
-                  {user?.role === 'WORKERS' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
+                  {user?.role === 'WORKER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
+                </button>
+
+                <button
+                  onClick={() => handleRoleSwitch('VIEWER')}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-teal-50 transition-colors cursor-pointer ${
+                    user?.role === 'VIEWER' ? 'bg-teal-50 font-bold text-teal-800' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded bg-teal-100 text-teal-800">
+                      <Eye className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-teal-900">{t('role.viewer', 'Viewer (Station Staff / Observer)')}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">Operational Read-Only & Problem Reporting</div>
+                    </div>
+                  </div>
+                  {user?.role === 'VIEWER' && <span className="text-[10px] text-emerald-600 font-bold">ACTIVE</span>}
                 </button>
 
                 <div className="border-t border-slate-100 my-1"></div>

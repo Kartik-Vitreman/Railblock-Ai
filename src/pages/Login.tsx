@@ -24,14 +24,28 @@ import {
   FileCheck2,
   Activity,
   Wrench,
+  LifeBuoy,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { UserRole } from '@/types'
+
+interface DemoAccountCard {
+  role: UserRole
+  title: string
+  subtitle: string
+  badge: string
+  badgeColor: string
+  icon: any
+  cardColor: string
+  email: string
+  features: { icon: any; title: string; desc: string }[]
+}
 
 export function Login() {
-  const [selectedRole, setSelectedRole] = useState<'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS'>('ADMINISTRATION')
+  const [selectedRole, setSelectedRole] = useState<UserRole>('ADMIN')
   const [email, setEmail] = useState('admin.srdom@cr.railnet.gov.in')
-  const [password, setPassword] = useState('••••••••••••')
+  const [password, setPassword] = useState('RailNet@2026')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,21 +57,83 @@ export function Login() {
 
   const from = (location.state as any)?.from?.pathname || '/'
 
-  const handleRoleSelect = (role: 'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS') => {
-    setSelectedRole(role)
-    const preset = PRESET_USERS[role]
-    setEmail(preset.email)
+  const demoAccounts: DemoAccountCard[] = [
+    {
+      role: 'ADMIN',
+      title: t('role.admin', 'Administration (Sr. DOM)'),
+      subtitle: 'Executive Sanction Authority',
+      badge: 'HQ / DRM LEVEL',
+      badgeColor: 'bg-[#0B2545] text-amber-200 border-amber-400/40',
+      icon: Building2,
+      cardColor: 'border-[#0B2545] bg-amber-50/40',
+      email: 'admin@railnet.gov.in',
+      features: [
+        { icon: CheckCircle2, title: 'Sanction Authority', desc: 'Final Human Approval of corridor maintenance blocks' },
+        { icon: Cpu, title: 'CP-SAT Optimization', desc: 'Algorithm tuning and multi-objective weight calibration' },
+        { icon: FileCheck2, title: 'Compliance & Audit', desc: 'Immutable cryptographic officer audit logs and circulars' },
+      ],
+    },
+    {
+      role: 'PLANNER',
+      title: t('role.ops', 'Operational Dept (Controller)'),
+      subtitle: 'Chief Section Controller',
+      badge: 'SECTION CONTROL',
+      badgeColor: 'bg-[#134074] text-blue-100 border-blue-400/40',
+      icon: Radio,
+      cardColor: 'border-[#134074] bg-blue-50/40',
+      email: 'planner@railnet.gov.in',
+      features: [
+        { icon: Activity, title: 'Live Movement', desc: 'Real-time train delays and national corridor tracking' },
+        { icon: Train, title: 'Timetable Protection', desc: 'Headway buffer enforcement & conflict prevention' },
+        { icon: AlertTriangle, title: 'Requisitions & Simulation', desc: 'Possession scheduling and what-if delay modeling' },
+      ],
+    },
+    {
+      role: 'WORKER',
+      title: t('role.worker', 'Workers & Engineering (SSE P-Way)'),
+      subtitle: 'Trackwork & Field Staff',
+      badge: 'FIELD P-WAY',
+      badgeColor: 'bg-[#A6192E] text-rose-100 border-rose-400/40',
+      icon: HardHat,
+      cardColor: 'border-[#A6192E] bg-rose-50/40',
+      email: 'worker@railnet.gov.in',
+      features: [
+        { icon: Wrench, title: 'Work Orders', desc: 'Requisition rail renewal, tamping, and machine slots' },
+        { icon: CheckCircle2, title: 'USFD Flaw Register', desc: 'Log ultrasonic rail test defects & track condition' },
+        { icon: ShieldCheck, title: 'Safety Protocols', desc: 'Detonator placement, banner flags & site protection' },
+      ],
+    },
+    {
+      role: 'VIEWER',
+      title: t('role.viewer', 'Viewer (Station Staff / Observer)'),
+      subtitle: 'Station Superintendent / Observer',
+      badge: 'STATION DESK',
+      badgeColor: 'bg-teal-900 text-teal-100 border-teal-400/40',
+      icon: LifeBuoy,
+      cardColor: 'border-teal-700 bg-teal-50/40',
+      email: 'viewer@railnet.gov.in',
+      features: [
+        { icon: Eye, title: 'Read-Only Corridors', desc: 'Live view of track possessions, trains, and line status' },
+        { icon: AlertTriangle, title: 'Complaint Reporting', desc: 'Report real operational problems, defects, and hazards' },
+        { icon: Activity, title: 'Status Tracking', desc: 'Monitor investigation progress & resolutions on tickets' },
+      ],
+    },
+  ]
+
+  const handleSelectAccount = (account: DemoAccountCard) => {
+    setSelectedRole(account.role)
+    setEmail(account.email)
     setPassword('RailNet@2026')
     setError(null)
   }
 
-  const handleDirectDemoLogin = async (role: 'ADMINISTRATION' | 'OPERATIONS' | 'WORKERS') => {
+  const handleDirectDemoLogin = async (role: UserRole) => {
     setIsSubmitting(true)
     setError(null)
     try {
       const preset = PRESET_USERS[role]
-      const res = await authApi.login({ role, email: preset.email })
-      await login(res.access_token, preset)
+      const res = await authApi.login({ email: preset.email, password: 'RailNet@2026' })
+      await login(res.access_token, res.user || preset)
       navigate(from, { replace: true })
     } catch {
       await login(`railblock-${role.toLowerCase()}-token`, PRESET_USERS[role])
@@ -73,12 +149,12 @@ export function Login() {
     setIsSubmitting(true)
 
     try {
-      const res = await authApi.login({ email, password, role: selectedRole })
-      await login(res.access_token, res.user || PRESET_USERS[selectedRole])
+      // Authenticate directly with credentials - role is strictly resolved by the backend!
+      const res = await authApi.login({ email, password })
+      await login(res.access_token, res.user)
       navigate(from, { replace: true })
-    } catch {
-      await login(`railblock-${selectedRole.toLowerCase()}-token`, PRESET_USERS[selectedRole])
-      navigate(from, { replace: true })
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Authentication failed. Please verify credentials.')
     } finally {
       setIsSubmitting(false)
     }
@@ -146,7 +222,7 @@ export function Login() {
       </div>
 
       {/* Main Container */}
-      <div className="w-full max-w-5xl z-10 space-y-4 my-6">
+      <div className="w-full max-w-6xl z-10 space-y-4 my-6">
         {/* Government of India Header Banner */}
         <div className="bg-[#0B2545]/95 backdrop-blur-md text-white rounded-t-xl overflow-hidden shadow-2xl border border-blue-400/30 border-b-4 border-b-[#A6192E]">
           {/* Tricolour Stripe */}
@@ -176,178 +252,91 @@ export function Login() {
 
             <div className="text-center sm:text-right shrink-0">
               <span className="text-[10px] uppercase font-bold tracking-wider bg-blue-900/80 text-amber-200 px-3 py-1 rounded-md border border-amber-400/30 inline-block font-mono">
-                SECURE AUTH GATEWAY
+                ROLE-BASED ACCESS CONTROL (RBAC)
               </span>
-              <div className="text-[10px] text-slate-300 mt-1 font-mono">ALL-INDIA NATIONAL RAILNET</div>
+              <div className="text-[10px] text-slate-300 mt-1 font-mono">CRIS AUTHENTICATED GATEWAY</div>
             </div>
           </div>
         </div>
 
         {/* Content Body: Role Selector & Login Form */}
         <div className="bg-white/95 backdrop-blur-md rounded-b-xl shadow-2xl border border-slate-200 p-4 sm:p-6 md:p-8">
-          <div className="text-center max-w-xl mx-auto mb-6">
+          <div className="text-center max-w-2xl mx-auto mb-6">
             <h2 className="text-lg font-bold text-[#0B2545]">
-              {t('login.title', 'Department Clearance & Sign-In')}
+              {t('login.title', 'Personnel Verification & Department Sign-In')}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              {t('login.desc', 'Select your railway department role below to authenticate with designated operational clearance and credentials.')}
+              Select an authorized personnel account below to examine role-specific features and prefill credentials, or sign in with your registered RailNet email.
             </p>
           </div>
 
-          {/* Three Department Roles with Distinct Adapted Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {/* 1. Administration Role */}
-            <div
-              onClick={() => handleRoleSelect('ADMINISTRATION')}
-              className={`cursor-pointer rounded-xl p-4 border-2 transition-all duration-200 flex flex-col justify-between hover:shadow-lg ${
-                selectedRole === 'ADMINISTRATION'
-                  ? 'border-[#0B2545] bg-blue-50/70 shadow-md ring-2 ring-[#0B2545]/30'
-                  : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2.5 rounded-lg ${selectedRole === 'ADMINISTRATION' ? 'bg-[#0B2545] text-amber-300' : 'bg-slate-100 text-slate-700'}`}>
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <Badge className="bg-[#0B2545] text-amber-200 text-[9px] font-bold">HQ / DRM LEVEL</Badge>
-                </div>
-                <h3 className="font-bold text-sm text-[#0B2545]">{t('role.admin', 'Administration (Sr. DOM)')}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Executive Sanction & Strategy</p>
+          {/* Four Authorized Railway Roles Grid with Distinct Features */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {demoAccounts.map((account) => {
+              const Icon = account.icon
+              const isSelected = selectedRole === account.role
+              return (
+                <div
+                  key={account.role}
+                  onClick={() => handleSelectAccount(account)}
+                  className={`cursor-pointer rounded-xl p-4 border-2 transition-all duration-200 flex flex-col justify-between hover:shadow-lg ${
+                    isSelected
+                      ? `${account.cardColor} ring-2 ring-[#0B2545]/40 shadow-md scale-[1.01]`
+                      : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isSelected ? 'bg-[#0B2545] text-amber-300' : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <Badge className={`text-[9px] font-bold ${account.badgeColor}`}>
+                        {account.badge}
+                      </Badge>
+                    </div>
 
-                {/* Features of Website Inside for Administration */}
-                <div className="mt-3 text-[11px] text-slate-600 space-y-1.5 border-t border-slate-100 pt-2">
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Sanction Authority:</strong> Final approval of block requisitions</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <Cpu className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
-                    <span><strong>CP-SAT Optimization:</strong> Algorithmic solver weight tuning</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <FileCheck2 className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                    <span><strong>Joint Circulars:</strong> Statutory compliance & board audits</span>
-                  </div>
-                </div>
-              </div>
+                    <h3 className="font-bold text-xs text-[#0B2545] leading-snug">{account.title}</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{account.subtitle}</p>
 
-              <Button
-                type="button"
-                size="sm"
-                tooltip="Direct demo sign-in with full Senior DOM administrative clearance"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleDirectDemoLogin('ADMINISTRATION')
-                }}
-                disabled={isSubmitting}
-                className="w-full mt-4 bg-[#0B2545] hover:bg-[#134074] hover:text-amber-200 text-white text-xs font-semibold"
-              >
-                Sign In as Administration
-              </Button>
-            </div>
+                    {/* Features of Website Inside for this Role */}
+                    <div className="mt-3 text-[11px] text-slate-600 space-y-2 border-t border-slate-200/80 pt-2.5">
+                      {account.features.map((feat, idx) => {
+                        const FeatIcon = feat.icon
+                        return (
+                          <div key={idx} className="flex items-start gap-1.5 text-[10px] text-slate-700">
+                            <FeatIcon className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="text-slate-900">{feat.title}:</strong>{' '}
+                              <span className="text-slate-600">{feat.desc}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
 
-            {/* 2. Operational Department Role */}
-            <div
-              onClick={() => handleRoleSelect('OPERATIONS')}
-              className={`cursor-pointer rounded-xl p-4 border-2 transition-all duration-200 flex flex-col justify-between hover:shadow-lg ${
-                selectedRole === 'OPERATIONS'
-                  ? 'border-[#134074] bg-indigo-50/70 shadow-md ring-2 ring-[#134074]/30'
-                  : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2.5 rounded-lg ${selectedRole === 'OPERATIONS' ? 'bg-[#134074] text-white' : 'bg-slate-100 text-slate-700'}`}>
-                    <Radio className="h-5 w-5" />
-                  </div>
-                  <Badge className="bg-[#134074] text-white text-[9px] font-bold">CONTROL ROOM</Badge>
-                </div>
-                <h3 className="font-bold text-sm text-[#0B2545]">{t('role.ops', 'Operational Dept (Controller)')}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Chief Section Controller</p>
-
-                {/* Features of Website Inside for Operational Dept */}
-                <div className="mt-3 text-[11px] text-slate-600 space-y-1.5 border-t border-slate-100 pt-2">
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <Activity className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
-                    <span><strong>Live Movement:</strong> National train tracking & delays</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <Train className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Headway Protection:</strong> Conflict prevention & buffer checks</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                    <span><strong>Caution Orders:</strong> Speed restrictions (TSR) & handover</span>
+                  <div className="mt-4 pt-2 border-t border-slate-100">
+                    <Button
+                      type="button"
+                      size="sm"
+                      tooltip={`Direct demo sign-in as ${account.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDirectDemoLogin(account.role)
+                      }}
+                      disabled={isSubmitting}
+                      className="w-full bg-[#0B2545] hover:bg-[#134074] hover:text-amber-200 text-white text-[11px] font-semibold"
+                    >
+                      Instant Demo Sign-In
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                tooltip="Direct demo sign-in as Chief Section Controller"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleDirectDemoLogin('OPERATIONS')
-                }}
-                disabled={isSubmitting}
-                className="w-full mt-4 bg-[#134074] hover:bg-[#0B2545] hover:text-amber-200 text-white text-xs font-semibold"
-              >
-                Sign In as Operations
-              </Button>
-            </div>
-
-            {/* 3. Workers & Engineering Role */}
-            <div
-              onClick={() => handleRoleSelect('WORKERS')}
-              className={`cursor-pointer rounded-xl p-4 border-2 transition-all duration-200 flex flex-col justify-between hover:shadow-lg ${
-                selectedRole === 'WORKERS'
-                  ? 'border-[#A6192E] bg-rose-50/70 shadow-md ring-2 ring-[#A6192E]/30'
-                  : 'border-slate-200 bg-white hover:border-red-300 hover:bg-slate-50'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2.5 rounded-lg ${selectedRole === 'WORKERS' ? 'bg-[#A6192E] text-white' : 'bg-slate-100 text-slate-700'}`}>
-                    <HardHat className="h-5 w-5" />
-                  </div>
-                  <Badge className="bg-[#A6192E] text-white text-[9px] font-bold">P-WAY / FIELD STAFF</Badge>
-                </div>
-                <h3 className="font-bold text-sm text-[#0B2545]">{t('role.worker', 'Workers & Engineering (SSE P-Way)')}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Trackwork & Machine Staff</p>
-
-                {/* Features of Website Inside for Workers */}
-                <div className="mt-3 text-[11px] text-slate-600 space-y-1.5 border-t border-slate-100 pt-2">
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <Wrench className="h-3.5 w-3.5 text-rose-600 shrink-0 mt-0.5" />
-                    <span><strong>Work Orders:</strong> Rail renewal & machine requisition</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Defect Register:</strong> USFD rail flaws & OHE inspection</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 text-[10px] text-slate-700">
-                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
-                    <span><strong>Safety Checklist:</strong> Detonator placement & block clearance</span>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                tooltip="Direct demo sign-in as Senior Section Engineer (P-Way)"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleDirectDemoLogin('WORKERS')
-                }}
-                disabled={isSubmitting}
-                className="w-full mt-4 bg-[#A6192E] hover:bg-[#8B1425] hover:text-amber-200 text-white text-xs font-semibold"
-              >
-                Sign In as Workers
-              </Button>
-            </div>
+              )
+            })}
           </div>
 
           {/* Form Divider */}
@@ -357,14 +346,14 @@ export function Login() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-white px-3 text-slate-500 font-semibold tracking-wider text-[11px]">
-                {t('login.or', 'Or Authenticate with RailNet Credentials')}
+                {t('login.or', 'Or Sign In with RailNet Credentials')}
               </span>
             </div>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2.5 text-xs text-red-800">
+            <div className="mb-5 max-w-md mx-auto p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2.5 text-xs text-red-800">
               <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
               <span>{error}</span>
             </div>
@@ -375,7 +364,7 @@ export function Login() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                 <span>{t('login.email', 'RailNet Authorized Email / Employee ID')}</span>
-                <span className="text-[10px] text-slate-400 font-normal">Registered with CRIS</span>
+                <span className="text-[10px] text-slate-400 font-normal">CRIS Verified</span>
               </label>
               <div className="relative">
                 <Mail className="h-4 w-4 absolute left-3 top-3 text-slate-400" />
@@ -419,7 +408,7 @@ export function Login() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                tooltip="Authenticate and enter the RAILBLOCK AI portal"
+                tooltip="Authenticate credentials against backend RBAC directory"
                 className="w-full bg-[#0B2545] hover:bg-[#134074] hover:text-amber-200 text-white py-2.5 text-xs font-bold shadow-md flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
@@ -428,7 +417,7 @@ export function Login() {
                   </>
                 ) : (
                   <>
-                    <KeyRound className="h-4 w-4 text-amber-300" /> {t('login.secure_btn', 'Secure Sign-In')} ({selectedRole})
+                    <KeyRound className="h-4 w-4 text-amber-300" /> {t('login.secure_btn', 'Secure Sign-In')}
                   </>
                 )}
               </Button>
@@ -439,7 +428,7 @@ export function Login() {
           <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>{t('login.cris_audit', 'Indian Railways CRIS Security Compliant • 256-bit Encrypted')}</span>
+              <span>{t('login.cris_audit', 'Indian Railways CRIS Security Compliant • Role-Based Access Enforced by Backend')}</span>
             </div>
             <span>Smart India Hackathon 2026 • Problem Statement #27</span>
           </div>

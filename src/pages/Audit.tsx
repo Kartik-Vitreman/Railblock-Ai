@@ -1,14 +1,48 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { auditApi } from '@/lib/api'
-import { Shield, Clock, CheckCircle2, User, KeyRound, Loader2 } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
+import { Shield, Clock, CheckCircle2, User, KeyRound, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 export function Audit() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
   const { data: auditData, isLoading } = useQuery({
     queryKey: ['audit'],
     queryFn: () => auditApi.list(),
+    enabled: user?.role === 'ADMIN',
   })
+
+  if (user?.role !== 'ADMIN') {
+    return (
+      <div className="flex-1 p-6 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-[#F4F6F9]">
+        <Card className="max-w-md w-full p-6 text-center bg-white border-red-200 shadow-lg space-y-4">
+          <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Access Restricted by RBAC Policy</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Safety and cryptographic audit logs are restricted exclusively to Senior DOM Administration accounts under CRIS security guidelines.
+            </p>
+          </div>
+          <div className="p-3 bg-slate-50 rounded text-xs text-slate-600 font-mono">
+            Current role: <strong className="text-slate-900">{user?.role}</strong> (Permission Denied)
+          </div>
+          <Button
+            onClick={() => navigate('/')}
+            className="w-full bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-semibold gap-1.5"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Return to Dashboard
+          </Button>
+        </Card>
+      </div>
+    )
+  }
 
   const rawAudit = Array.isArray(auditData) ? auditData : auditData?.items || []
 

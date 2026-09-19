@@ -95,43 +95,60 @@ export function Dashboard() {
             <span>{t('nav.network', 'All-India GIS Map')}</span>
           </Button>
 
-          <Button
-            onClick={() => navigate('/maintenance?action=new')}
-            tooltip="Requisition new track or catenary possession window"
-            className="bg-[#A6192E] hover:bg-[#8B1425] text-white text-xs font-semibold gap-1.5 shadow-xs"
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span>{t('btn.new_task', 'Requisition Task')}</span>
-          </Button>
+          {user?.role !== 'VIEWER' && (
+            <Button
+              onClick={() => navigate('/maintenance?action=new')}
+              tooltip="Requisition new track or catenary possession window"
+              className="bg-[#A6192E] hover:bg-[#8B1425] text-white text-xs font-semibold gap-1.5 shadow-xs"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              <span>{t('btn.new_task', 'Requisition Task')}</span>
+            </Button>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <Button
+              onClick={() => navigate('/optimization')}
+              tooltip="Launch Google OR-Tools CP-SAT discrete optimization engine"
+              className="bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-semibold gap-1.5 shadow-xs"
+            >
+              <GitCompare className="h-3.5 w-3.5 text-amber-400" />
+              <span>{t('btn.optimize', 'CP-SAT Solver')}</span>
+            </Button>
+          )}
 
           <Button
-            onClick={() => navigate('/optimization')}
-            tooltip="Launch Google OR-Tools CP-SAT discrete optimization engine"
-            className="bg-[#0B2545] hover:bg-[#134074] text-white text-xs font-semibold gap-1.5 shadow-xs"
+            onClick={() => navigate('/complaints')}
+            tooltip="Report or manage operational problems, track defects, and safety complaints"
+            className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold gap-1.5 shadow-xs"
           >
-            <GitCompare className="h-3.5 w-3.5 text-amber-400" />
-            <span>{t('btn.optimize', 'CP-SAT Solver')}</span>
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+            <span>{t('nav.complaints', 'Complaints & Problems')}</span>
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => navigate('/reports')}
-            tooltip="Generate official Joint Circular Memorandum"
-            className="text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 gap-1.5"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            <span>{t('btn.export', 'Joint Circular')}</span>
-          </Button>
+          {user?.role === 'ADMIN' && (
+            <Button
+              variant="outline"
+              onClick={() => navigate('/reports')}
+              tooltip="Generate official Joint Circular Memorandum"
+              className="text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100 gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>{t('btn.export', 'Joint Circular')}</span>
+            </Button>
+          )}
         </div>
       </div>
 
       {/* 2. DYNAMIC ROLE-CUSTOMIZED MISSION CONTROL STRIP */}
       <div
         className={`rounded-xl border p-4 shadow-sm transition-all duration-300 ${
-          user?.role === 'WORKERS'
+          user?.role === 'WORKER'
             ? 'bg-gradient-to-r from-rose-900/10 via-rose-50/50 to-white border-rose-300'
-            : user?.role === 'OPERATIONS'
+            : user?.role === 'PLANNER'
             ? 'bg-gradient-to-r from-blue-900/10 via-indigo-50/50 to-white border-blue-300'
+            : user?.role === 'VIEWER'
+            ? 'bg-gradient-to-r from-teal-900/10 via-teal-50/50 to-white border-teal-300'
             : 'bg-gradient-to-r from-amber-900/10 via-amber-50/50 to-white border-amber-300'
         }`}
       >
@@ -139,17 +156,21 @@ export function Dashboard() {
           <div className="flex items-start gap-3">
             <div
               className={`p-2.5 rounded-lg shrink-0 shadow-xs ${
-                user?.role === 'WORKERS'
+                user?.role === 'WORKER'
                   ? 'bg-[#A6192E] text-white'
-                  : user?.role === 'OPERATIONS'
+                  : user?.role === 'PLANNER'
                   ? 'bg-[#134074] text-white'
+                  : user?.role === 'VIEWER'
+                  ? 'bg-teal-700 text-white'
                   : 'bg-[#0B2545] text-amber-300'
               }`}
             >
-              {user?.role === 'WORKERS' ? (
+              {user?.role === 'WORKER' ? (
                 <HardHat className="h-6 w-6" />
-              ) : user?.role === 'OPERATIONS' ? (
+              ) : user?.role === 'PLANNER' ? (
                 <Radio className="h-6 w-6" />
+              ) : user?.role === 'VIEWER' ? (
+                <AlertTriangle className="h-6 w-6" />
               ) : (
                 <Building2 className="h-6 w-6" />
               )}
@@ -158,36 +179,42 @@ export function Dashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white border text-slate-800">
-                  {user?.role === 'WORKERS'
+                  {user?.role === 'WORKER'
                     ? 'FIELD WORKER DASHBOARD'
-                    : user?.role === 'OPERATIONS'
+                    : user?.role === 'PLANNER'
                     ? 'SECTION CONTROLLER DESK'
+                    : user?.role === 'VIEWER'
+                    ? 'STATION SAFETY OBSERVER / PASSENGER DESK'
                     : 'SENIOR DOM EXECUTIVE CONSOLE'}
                 </span>
                 <span className="text-xs text-slate-500 font-mono">User: {user?.full_name || 'Officer'}</span>
               </div>
 
               <h2 className="text-sm sm:text-base font-bold text-slate-900 mt-1">
-                {user?.role === 'WORKERS'
+                {user?.role === 'WORKER'
                   ? 'Field Engineering & Track Requisition Desk'
-                  : user?.role === 'OPERATIONS'
+                  : user?.role === 'PLANNER'
                   ? 'Live Train Movement & Section Headway Console'
+                  : user?.role === 'VIEWER'
+                  ? 'Operational Safety Observation & Complaint Reporting'
                   : 'Executive Decision Support & Block Sanction Authority'}
               </h2>
 
               <p className="text-xs text-slate-600 mt-0.5">
-                {user?.role === 'WORKERS'
+                {user?.role === 'WORKER'
                   ? 'Submit work orders, record USFD ultrasonic rail flaw tests, verify safety protocols, and request track machine slots.'
-                  : user?.role === 'OPERATIONS'
+                  : user?.role === 'PLANNER'
                   ? 'Monitor real-time train punctualities across 17 zones, regulate block handovers, and enforce timetable buffer protections.'
-                  : 'Review proposed maintenance possessions, execute Google OR-Tools CP-SAT discrete optimization, and certify joint circulars.'}
+                  : user?.role === 'VIEWER'
+                  ? 'Read-only access to corridor operations. Report real operational problems, safety hazards, track obstacles, and infrastructure defects.'
+                  : 'Review proposed maintenance possessions, execute Google OR-Tools CP-SAT discrete optimization, approve plans, and audit logs.'}
               </p>
             </div>
           </div>
 
           {/* Role-Specific Direct Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
-            {user?.role === 'WORKERS' && (
+            {user?.role === 'WORKER' && (
               <>
                 <Button
                   size="sm"
@@ -209,16 +236,16 @@ export function Dashboard() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/alerts')}
-                  tooltip="View active speed restrictions and caution orders"
+                  onClick={() => navigate('/complaints')}
+                  tooltip="Report safety concerns or view assigned complaints"
                   className="text-xs font-medium border-slate-300 hover:bg-slate-100"
                 >
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Caution Orders
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Field Complaints
                 </Button>
               </>
             )}
 
-            {user?.role === 'OPERATIONS' && (
+            {user?.role === 'PLANNER' && (
               <>
                 <Button
                   size="sm"
@@ -249,7 +276,38 @@ export function Dashboard() {
               </>
             )}
 
-            {user?.role === 'ADMINISTRATION' && (
+            {user?.role === 'VIEWER' && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/complaints?action=new')}
+                  tooltip="Report an operational problem, track fault, or station amenity issue"
+                  className="bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold gap-1.5 shadow-xs"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-300" /> Report Problem / Complaint
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/trains')}
+                  tooltip="View live train tracking and delay status"
+                  className="text-xs font-medium border-slate-300 hover:bg-slate-100"
+                >
+                  <Train className="h-3.5 w-3.5 text-[#134074]" /> Live Train Tracker
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate('/network')}
+                  tooltip="View GIS Railway Network Map"
+                  className="text-xs font-medium border-slate-300 hover:bg-slate-100"
+                >
+                  <MapPin className="h-3.5 w-3.5 text-emerald-600" /> GIS Network Map
+                </Button>
+              </>
+            )}
+
+            {user?.role === 'ADMIN' && (
               <>
                 <Button
                   size="sm"
@@ -262,11 +320,11 @@ export function Dashboard() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/optimization')}
-                  tooltip="Execute CP-SAT solver to regenerate zero-conflict maintenance schedule"
+                  onClick={() => navigate('/complaints')}
+                  tooltip="Manage, investigate and assign reported complaints"
                   className="text-xs font-medium border-slate-300 hover:bg-slate-100"
                 >
-                  <Cpu className="h-3.5 w-3.5 text-blue-600" /> CP-SAT Weights
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Manage Complaints
                 </Button>
                 <Button
                   size="sm"

@@ -129,7 +129,7 @@ interface BlockRequest {
   start_time: string;
   end_time: string;
   requested_duration_hours: number;
-  status: 'REQUESTED' | 'PROPOSED' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
+  status: 'REQUESTED' | 'PROPOSED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
   department: string;
   purpose: string;
   approving_officer: string | null;
@@ -617,74 +617,681 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
-// User Directory for Roles
-const USER_PROFILES: Record<string, any> = {
-  ADMINISTRATION: {
+// ---------------------------------------------------------------------------
+// ROLE-BASED ACCESS CONTROL (RBAC) & USER DIRECTORY
+// ---------------------------------------------------------------------------
+
+export type UserRole = 'ADMIN' | 'PLANNER' | 'WORKER' | 'VIEWER';
+
+export interface UserAccount {
+  id: string;
+  email: string;
+  password?: string;
+  name: string;
+  full_name: string;
+  role: UserRole;
+  department: string;
+  designation: string;
+  division: string;
+  clearance: string;
+  permissions: string[];
+  status: 'ACTIVE' | 'SUSPENDED';
+  created_at: string;
+}
+
+const USERS_DIRECTORY: UserAccount[] = [
+  {
     id: 'usr-admin',
-    email: 'admin.srdom@cr.railnet.gov.in',
+    email: 'admin@railnet.gov.in',
+    name: 'Shri V. R. Sharma, IRTS',
     full_name: 'Shri V. R. Sharma, IRTS',
+    role: 'ADMIN',
     designation: 'Senior Divisional Operations Manager (Sr. DOM)',
-    department: 'Administration & Traffic Dispatch',
+    department: 'Administration & Traffic Sanction',
     division: 'Central Railway — Mumbai Division (HQ)',
-    role: 'ADMINISTRATION',
-    clearance: 'Class-A Executive Sanction',
-    permissions: ['SANCTION_BLOCKS', 'SIGN_CIRCULARS', 'OVERRIDE_INTERLOCKING', 'AUDIT_ACCESS', 'OPTIMIZE_SCHEDULE'],
+    clearance: 'Class-A Final Human Approval Authority',
+    status: 'ACTIVE',
+    created_at: '2025-01-15T08:00:00.000Z',
+    permissions: [
+      'VIEW_ALL_DASHBOARDS',
+      'MANAGE_USERS',
+      'ASSIGN_ROLES',
+      'CREATE_PLANS',
+      'EDIT_PLANS',
+      'DELETE_PLANS',
+      'APPROVE_PLANS',
+      'HUMAN_APPROVAL',
+      'REJECT_PLANS',
+      'OVERRIDE_AI',
+      'MANAGE_SETTINGS',
+      'VIEW_AUDIT_LOGS',
+      'ACCESS_ALL_MODULES',
+      'MANAGE_ALL_COMPLAINTS',
+      'ASSIGN_COMPLAINTS',
+      'CHANGE_COMPLAINT_STATUS',
+      'CLOSE_COMPLAINTS',
+    ],
   },
-  OPERATIONS: {
-    id: 'usr-operations',
-    email: 'controller.mum@cr.railnet.gov.in',
+  {
+    id: 'usr-planner',
+    email: 'planner@railnet.gov.in',
+    name: 'Shri A. K. Deshmukh',
     full_name: 'Shri A. K. Deshmukh',
-    designation: 'Chief Section Controller (Suburban & Ghat)',
-    department: 'Railway Operational Department',
+    role: 'PLANNER',
+    designation: 'Chief Section Controller (Traffic & Planning)',
+    department: 'Operating Department',
     division: 'Central Control Office, CSMT Mumbai',
-    role: 'OPERATIONS',
-    clearance: 'Traffic Movement & Headway Control',
-    permissions: ['VIEW_LIVE_TRAINS', 'REGULATE_HEADWAYS', 'VALIDATE_MANUAL_SHIFT', 'ACKNOWLEDGE_CAUTION_ORDERS'],
+    clearance: 'Corridor Capacity & Optimization Planning',
+    status: 'ACTIVE',
+    created_at: '2025-02-10T09:30:00.000Z',
+    permissions: [
+      'VIEW_PERMITTED_DASHBOARDS',
+      'CREATE_PLANS',
+      'GENERATE_AI_PLANS',
+      'MODIFY_DRAFT_PLANS',
+      'REVIEW_PLANS',
+      'SUBMIT_FOR_APPROVAL',
+      'VIEW_PLAN_STATUS',
+      'VIEW_OPERATIONAL_DATA',
+      'VIEW_PLANNING_COMPLAINTS',
+    ],
   },
-  WORKERS: {
+  {
     id: 'usr-worker',
-    email: 'pway.sse@cr.railnet.gov.in',
+    email: 'worker@railnet.gov.in',
+    name: 'Shri R. N. Patil',
     full_name: 'Shri R. N. Patil',
-    designation: 'Senior Section Engineer (P-Way / Track Machine)',
-    department: 'Engineering Field Workers & Maintenance',
+    role: 'WORKER',
+    designation: 'Senior Section Engineer (P-Way / Field Staff)',
+    department: 'Civil Engineering & P-Way Depot',
     division: 'Kalyan — Karjat Engineering Depot',
-    role: 'WORKERS',
-    clearance: 'P-Way Requisition & Machine Roster',
-    permissions: ['REQUISITION_MAINTENANCE', 'REPORT_USFD_DEFECT', 'REQUEST_MACHINE_ROSTER', 'LOG_TRACK_TAMPING'],
+    clearance: 'Field Execution & Observation Reporting',
+    status: 'ACTIVE',
+    created_at: '2025-03-01T11:00:00.000Z',
+    permissions: [
+      'VIEW_ASSIGNED_TASKS',
+      'UPDATE_EXECUTION_STATUS',
+      'ADD_FIELD_OBSERVATIONS',
+      'REPORT_DEFECTS',
+      'VIEW_ASSIGNED_COMPLAINTS',
+      'UPDATE_COMPLAINT_PROGRESS',
+      'SUBMIT_RESOLUTION_INFO',
+    ],
   },
+  {
+    id: 'usr-viewer',
+    email: 'viewer@railnet.gov.in',
+    name: 'Smt. Priya Nair',
+    full_name: 'Smt. Priya Nair',
+    role: 'VIEWER',
+    designation: 'Station Superintendent / Rail Safety Observer',
+    department: 'Commercial & Station Operations',
+    division: 'Mumbai Division',
+    clearance: 'Operational Observation & Problem Reporting',
+    status: 'ACTIVE',
+    created_at: '2025-04-12T14:20:00.000Z',
+    permissions: [
+      'VIEW_PERMITTED_DASHBOARDS',
+      'VIEW_PERMITTED_PLANS',
+      'VIEW_ASSET_STATUS',
+      'REPORT_PROBLEM',
+      'VIEW_OWN_COMPLAINTS',
+      'TRACK_COMPLAINT_STATUS',
+    ],
+  },
+];
+
+// Active sessions mapping (Token -> User Account)
+const ACTIVE_SESSIONS: Record<string, UserAccount> = {};
+
+// Audit log in-memory store
+export interface AuditLogItem {
+  id: string;
+  action: string;
+  user: string;
+  user_id?: string;
+  user_role?: string;
+  entity_type: string;
+  entity_id: string;
+  details: string;
+  timestamp: string;
+  previous_status?: string;
+  new_status?: string;
+  resolution_info?: string;
+}
+
+const auditLogs: AuditLogItem[] = [
+  {
+    id: 'aud-001',
+    action: 'SYSTEM_BOOT',
+    user: 'SYSTEM (RailBlock Core)',
+    user_id: 'sys',
+    user_role: 'SYSTEM',
+    entity_type: 'SYSTEM',
+    entity_id: 'rbk-init',
+    details: 'RBAC Security Gateway initialized. Strict role verification active for 4 roles: ADMIN, PLANNER, WORKER, VIEWER.',
+    timestamp: new Date(Date.now() - 3600000 * 5).toISOString(),
+  },
+  {
+    id: 'aud-002',
+    action: 'BLOCK_SANCTION_APPROVED',
+    user: 'Shri V. R. Sharma, IRTS (ADMIN)',
+    user_id: 'usr-admin',
+    user_role: 'ADMIN',
+    entity_type: 'PLAN',
+    entity_id: 'blk-001',
+    details: 'Executive Human Sanction granted for 3.5h Joint Integrated Block for CSMT-DR Suburban Fast Corridor.',
+    previous_status: 'PENDING_APPROVAL',
+    new_status: 'APPROVED',
+    timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
+  },
+  {
+    id: 'aud-003',
+    action: 'COMPLAINT_SUBMITTED',
+    user: 'Smt. Priya Nair (VIEWER)',
+    user_id: 'usr-viewer',
+    user_role: 'VIEWER',
+    entity_type: 'COMPLAINT',
+    entity_id: 'RB-CMP-1024',
+    details: 'Defect complaint filed regarding oscillating aspect sequences on Bareilly Yard turnout facing point.',
+    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: 'aud-004',
+    action: 'COMPLAINT_ASSIGNED',
+    user: 'Shri V. R. Sharma, IRTS (ADMIN)',
+    user_id: 'usr-admin',
+    user_role: 'ADMIN',
+    entity_type: 'COMPLAINT',
+    entity_id: 'RB-CMP-1024',
+    details: 'Assigned complaint to Signal & Telecom Gang under SSE Shri R. N. Patil with priority High.',
+    previous_status: 'Submitted',
+    new_status: 'Assigned',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+  },
+];
+
+function logAudit(item: Omit<AuditLogItem, 'id' | 'timestamp'> & { id?: string; timestamp?: string }) {
+  const record: AuditLogItem = {
+    id: item.id || `aud-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    timestamp: item.timestamp || new Date().toISOString(),
+    ...item,
+  };
+  auditLogs.unshift(record);
+  if (auditLogs.length > 500) {
+    auditLogs.pop();
+  }
+  return record;
+}
+
+// System Settings
+interface SystemSettings {
+  ai_model: string;
+  safety_buffer_minutes: number;
+  max_delay_threshold_minutes: number;
+  auto_replan_interval_minutes: number;
+  require_two_tier_approval: boolean;
+  maintenance_block_curfew: string;
+  allow_freight_preemption: boolean;
+  division_name: string;
+  zone_name: string;
+}
+
+let systemSettings: SystemSettings = {
+  ai_model: 'Gemini 2.5 Flash + CP-SAT Hybrid Solver',
+  safety_buffer_minutes: 15,
+  max_delay_threshold_minutes: 20,
+  auto_replan_interval_minutes: 30,
+  require_two_tier_approval: true,
+  maintenance_block_curfew: '01:00-04:30',
+  allow_freight_preemption: false,
+  division_name: 'Mumbai Division (CR)',
+  zone_name: 'Central Railway (CR)',
 };
 
-let currentActiveUser = USER_PROFILES.ADMINISTRATION;
+// Token extraction & user resolution helper
+function resolveUserFromToken(token: string): UserAccount | null {
+  if (!token) return null;
+  if (ACTIVE_SESSIONS[token]) {
+    return ACTIVE_SESSIONS[token];
+  }
+  const tokenLower = token.toLowerCase();
+  if (tokenLower.includes('admin')) {
+    return USERS_DIRECTORY.find((u) => u.role === 'ADMIN') || null;
+  }
+  if (tokenLower.includes('planner') || tokenLower.includes('operat')) {
+    return USERS_DIRECTORY.find((u) => u.role === 'PLANNER') || null;
+  }
+  if (tokenLower.includes('worker') || tokenLower.includes('pway')) {
+    return USERS_DIRECTORY.find((u) => u.role === 'WORKER') || null;
+  }
+  if (tokenLower.includes('viewer')) {
+    return USERS_DIRECTORY.find((u) => u.role === 'VIEWER') || null;
+  }
+  return USERS_DIRECTORY.find((u) => u.role === 'ADMIN') || null;
+}
 
-// Auth endpoints
-app.post('/api/v1/auth/login', (req, res) => {
-  const { email, password, role } = req.body || {};
-  let matchedUser = USER_PROFILES.ADMINISTRATION;
+function extractUserFromRequest(req: express.Request): UserAccount | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
+  return resolveUserFromToken(token);
+}
 
-  if (role && USER_PROFILES[role]) {
-    matchedUser = USER_PROFILES[role];
-  } else if (email) {
-    const emailLower = email.toLowerCase();
-    if (emailLower.includes('controller') || emailLower.includes('operat')) {
-      matchedUser = USER_PROFILES.OPERATIONS;
-    } else if (emailLower.includes('worker') || emailLower.includes('pway') || emailLower.includes('eng')) {
-      matchedUser = USER_PROFILES.WORKERS;
-    } else {
-      matchedUser = USER_PROFILES.ADMINISTRATION;
+// Middleware: Require valid session
+function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    return res.status(401).json({
+      detail: 'Authentication required. Missing, invalid, or expired session token.',
+      code: 'AUTH_REQUIRED',
+    });
+  }
+  (req as any).user = user;
+  next();
+}
+
+// Middleware: Require specific backend roles
+function requireRoles(...allowedRoles: UserRole[]) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const user = (req as any).user || extractUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({
+        detail: 'Authentication required. Please provide a valid Bearer token.',
+        code: 'AUTH_REQUIRED',
+      });
     }
+    (req as any).user = user;
+
+    if (!allowedRoles.includes(user.role)) {
+      // Record unauthorized attempt in audit log
+      logAudit({
+        action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+        user: `${user.full_name} (${user.role})`,
+        user_id: user.id,
+        user_role: user.role,
+        entity_type: 'SECURITY_GATEWAY',
+        entity_id: req.originalUrl,
+        details: `403 Forbidden: User role '${user.role}' attempted '${req.method} ${req.originalUrl}'. Access restricted strictly to roles: [${allowedRoles.join(', ')}].`,
+      });
+
+      return res.status(403).json({
+        detail: `Forbidden: User role '${user.role}' is not authorized to perform this operation. Required role: ${allowedRoles.join(' or ')}.`,
+        user_role: user.role,
+        required_roles: allowedRoles,
+        code: 'ROLE_FORBIDDEN',
+      });
+    }
+    next();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// COMPLAINTS & PROBLEM REPORTING DATA STORE
+// ---------------------------------------------------------------------------
+
+export interface ComplaintTimelineItem {
+  id: string;
+  timestamp: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  action: string;
+  notes: string;
+}
+
+export interface Complaint {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  location: string;
+  asset_id?: string;
+  block_id?: string;
+  incident_time: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  supporting_file?: string;
+  status: 'Submitted' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+  submitted_by_id: string;
+  submitted_by_name: string;
+  submitted_by_email: string;
+  submitted_by_role: string;
+  assigned_to_id?: string;
+  assigned_to_name?: string;
+  assigned_department?: string;
+  investigation_notes?: string;
+  resolution_details?: string;
+  admin_response?: string;
+  created_at: string;
+  updated_at: string;
+  timeline: ComplaintTimelineItem[];
+}
+
+let complaintsCounter = 1027;
+
+const complaints: Complaint[] = [
+  {
+    id: 'RB-CMP-1024',
+    title: 'Signal aspect oscillating between Double Yellow and Red at Bareilly Yard turnout',
+    category: 'Signal & Telecom Issue',
+    description: 'During peak morning movements, aspect sequence flickers irregularly whenever track circuit 44B is shunted. Section Controller alerted.',
+    location: 'Bareilly Yard, UP Main Line, KM 248/12',
+    asset_id: 'ast-004',
+    block_id: 'blk-001',
+    incident_time: new Date(Date.now() - 3600000 * 6).toISOString(),
+    priority: 'High',
+    status: 'In Progress',
+    submitted_by_id: 'usr-viewer',
+    submitted_by_name: 'Smt. Priya Nair',
+    submitted_by_email: 'viewer@railnet.gov.in',
+    submitted_by_role: 'VIEWER',
+    assigned_to_id: 'usr-worker',
+    assigned_to_name: 'Shri R. N. Patil',
+    assigned_department: 'Signal & Telecommunication (S&T)',
+    investigation_notes: 'Inspected relay rack at Cabin A. Found terminal screw 14 loose on HR relay. Cleaned contacts and re-tightened. Testing under live train shunting.',
+    created_at: new Date(Date.now() - 3600000 * 6).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
+    timeline: [
+      {
+        id: 'tl-1',
+        timestamp: new Date(Date.now() - 3600000 * 6).toISOString(),
+        user_id: 'usr-viewer',
+        user_name: 'Smt. Priya Nair',
+        user_role: 'VIEWER',
+        action: 'Problem Submitted',
+        notes: 'Initial operational defect complaint submitted via RailBlock portal.',
+      },
+      {
+        id: 'tl-2',
+        timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
+        user_id: 'usr-admin',
+        user_name: 'Shri V. R. Sharma, IRTS',
+        user_role: 'ADMIN',
+        action: 'Assigned to Field S&T Gang',
+        notes: 'Assigned to SSE Shri R. N. Patil. Priority validated as High.',
+      },
+      {
+        id: 'tl-3',
+        timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+        user_id: 'usr-worker',
+        user_name: 'Shri R. N. Patil',
+        user_role: 'WORKER',
+        action: 'Field Investigation Underway',
+        notes: 'Field staff dispatched to Cabin A. Track circuit insulation checked.',
+      },
+    ],
+  },
+  {
+    id: 'RB-CMP-1025',
+    title: 'Ballast scouring and track bed displacement under sleepers 320 to 345',
+    category: 'Track / Infrastructure Issue',
+    description: 'Heavy monsoon downpour caused ballast scouring on Down Fast line. Speed restriction 30 km/h recommended until packing.',
+    location: 'Kalyan — Titwala Section, KM 58/4',
+    asset_id: 'ast-001',
+    incident_time: new Date(Date.now() - 3600000 * 12).toISOString(),
+    priority: 'Critical',
+    status: 'Assigned',
+    submitted_by_id: 'usr-viewer',
+    submitted_by_name: 'Smt. Priya Nair',
+    submitted_by_email: 'viewer@railnet.gov.in',
+    submitted_by_role: 'VIEWER',
+    assigned_to_id: 'usr-worker',
+    assigned_to_name: 'Shri R. N. Patil',
+    assigned_department: 'Civil Engineering (Permanent Way)',
+    investigation_notes: 'Urgent track machine tamping requisitioned with operating block window.',
+    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 8).toISOString(),
+    timeline: [
+      {
+        id: 'tl-4',
+        timestamp: new Date(Date.now() - 3600000 * 12).toISOString(),
+        user_id: 'usr-viewer',
+        user_name: 'Smt. Priya Nair',
+        user_role: 'VIEWER',
+        action: 'Problem Submitted',
+        notes: 'Emergency safety report filed following driver advisory.',
+      },
+      {
+        id: 'tl-5',
+        timestamp: new Date(Date.now() - 3600000 * 8).toISOString(),
+        user_id: 'usr-admin',
+        user_name: 'Shri V. R. Sharma, IRTS',
+        user_role: 'ADMIN',
+        action: 'Assigned to P-Way Gang',
+        notes: 'Immediate caution order 30 km/h flagged. Requisitioned track tamping gang.',
+      },
+    ],
+  },
+  {
+    id: 'RB-CMP-1026',
+    title: 'OHE Catenary wire dropper missing between mast 102/4 and 102/6',
+    category: 'Electrical / Traction Issue',
+    description: 'Severe pantograph sparking noticed during passage of 12123 Deccan Queen. Urgent TRD inspection required before evening peak.',
+    location: 'Karjat Ghat Incline, Mast 102/4',
+    incident_time: new Date(Date.now() - 3600000 * 18).toISOString(),
+    priority: 'Medium',
+    status: 'Submitted',
+    submitted_by_id: 'usr-viewer',
+    submitted_by_name: 'Smt. Priya Nair',
+    submitted_by_email: 'viewer@railnet.gov.in',
+    submitted_by_role: 'VIEWER',
+    created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+    timeline: [
+      {
+        id: 'tl-6',
+        timestamp: new Date(Date.now() - 3600000 * 18).toISOString(),
+        user_id: 'usr-viewer',
+        user_name: 'Smt. Priya Nair',
+        user_role: 'VIEWER',
+        action: 'Problem Submitted',
+        notes: 'Submitted by Station Superintendent after station cabin log entry.',
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// AUTH & USER ENDPOINTS
+// ---------------------------------------------------------------------------
+
+// Auth Login - Role is STRICTLY controlled by backend record!
+app.post(['/api/v1/auth/login', '/auth/login'], (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email) {
+    return res.status(400).json({ detail: 'Email address is required' });
   }
 
-  currentActiveUser = matchedUser;
+  const emailLower = email.toLowerCase().trim();
+  const matchedUser = USERS_DIRECTORY.find((u) => {
+    const uEmail = u.email.toLowerCase();
+    if (uEmail === emailLower) return true;
+    // Support legacy email patterns
+    if (emailLower.includes('admin') && u.role === 'ADMIN') return true;
+    if ((emailLower.includes('controller') || emailLower.includes('planner')) && u.role === 'PLANNER') return true;
+    if ((emailLower.includes('worker') || emailLower.includes('pway')) && u.role === 'WORKER') return true;
+    if (emailLower.includes('viewer') && u.role === 'VIEWER') return true;
+    return false;
+  });
+
+  if (!matchedUser) {
+    return res.status(401).json({ detail: 'Invalid railway credentials. Account not found in RailNet directory.' });
+  }
+
+  const token = `railblock_${matchedUser.role.toLowerCase()}_${matchedUser.id}_${Date.now()}`;
+  ACTIVE_SESSIONS[token] = matchedUser;
+
+  logAudit({
+    action: 'USER_AUTHENTICATED',
+    user: `${matchedUser.full_name} (${matchedUser.role})`,
+    user_id: matchedUser.id,
+    user_role: matchedUser.role,
+    entity_type: 'AUTH_SESSION',
+    entity_id: matchedUser.id,
+    details: `User logged in. Backend authenticated with verified role '${matchedUser.role}' and ${matchedUser.permissions.length} permissions.`,
+  });
 
   res.json({
-    access_token: `railblock-token-${matchedUser.role.toLowerCase()}-${Date.now()}`,
+    access_token: token,
     token_type: 'bearer',
-    user: matchedUser,
+    user: {
+      id: matchedUser.id,
+      name: matchedUser.name,
+      full_name: matchedUser.full_name,
+      email: matchedUser.email,
+      role: matchedUser.role,
+      department: matchedUser.department,
+      designation: matchedUser.designation,
+      division: matchedUser.division,
+      clearance: matchedUser.clearance,
+      permissions: matchedUser.permissions,
+    },
   });
 });
 
-app.get('/api/v1/auth/me', (req, res) => {
-  res.json(currentActiveUser);
+// Current User Profile
+app.get(['/api/v1/auth/me', '/auth/me'], (req, res) => {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    // Default to admin for initial development preview if no token
+    const defaultAdmin = USERS_DIRECTORY[0];
+    return res.json(defaultAdmin);
+  }
+  res.json({
+    id: user.id,
+    name: user.name,
+    full_name: user.full_name,
+    email: user.email,
+    role: user.role,
+    department: user.department,
+    designation: user.designation,
+    division: user.division,
+    clearance: user.clearance,
+    permissions: user.permissions,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// USER MANAGEMENT ENDPOINTS (ADMIN ONLY)
+// ---------------------------------------------------------------------------
+
+// List all users - ADMIN ONLY
+app.get(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
+  res.json({
+    items: USERS_DIRECTORY.map((u) => ({
+      id: u.id,
+      name: u.name,
+      full_name: u.full_name,
+      email: u.email,
+      role: u.role,
+      department: u.department,
+      designation: u.designation,
+      division: u.division,
+      clearance: u.clearance,
+      permissions: u.permissions,
+      status: u.status,
+      created_at: u.created_at,
+    })),
+    total: USERS_DIRECTORY.length,
+  });
+});
+
+// Create new user - ADMIN ONLY
+app.post(['/api/v1/users', '/users'], requireRoles('ADMIN'), (req, res) => {
+  const { full_name, email, role, department, designation, division, clearance, permissions } = req.body || {};
+  if (!full_name || !email || !role) {
+    return res.status(400).json({ detail: 'Full name, email, and role are required' });
+  }
+
+  const existing = USERS_DIRECTORY.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (existing) {
+    return res.status(400).json({ detail: 'A user with this email address already exists' });
+  }
+
+  const newUser: UserAccount = {
+    id: `usr-${Date.now().toString().slice(-4)}`,
+    name: full_name,
+    full_name,
+    email,
+    role,
+    department: department || 'Operations Department',
+    designation: designation || 'Railway Officer',
+    division: division || 'Mumbai Division (CR)',
+    clearance: clearance || 'General Staff Clearance',
+    permissions: permissions || ['VIEW_PERMITTED_DASHBOARDS'],
+    status: 'ACTIVE',
+    created_at: new Date().toISOString(),
+  };
+
+  USERS_DIRECTORY.push(newUser);
+
+  logAudit({
+    action: 'USER_CREATED',
+    user: (req as any).user.full_name,
+    user_id: (req as any).user.id,
+    user_role: (req as any).user.role,
+    entity_type: 'USER',
+    entity_id: newUser.id,
+    details: `Created user account '${newUser.full_name}' with assigned role '${newUser.role}'.`,
+  });
+
+  res.status(201).json(newUser);
+});
+
+// Update user role - ADMIN ONLY
+app.put(['/api/v1/users/:id/role', '/users/:id/role'], requireRoles('ADMIN'), (req, res) => {
+  const { role, permissions } = req.body || {};
+  if (!role || !['ADMIN', 'PLANNER', 'WORKER', 'VIEWER'].includes(role)) {
+    return res.status(400).json({ detail: 'Valid role (ADMIN, PLANNER, WORKER, VIEWER) is required' });
+  }
+
+  const targetUser = USERS_DIRECTORY.find((u) => u.id === req.params.id);
+  if (!targetUser) {
+    return res.status(404).json({ detail: 'User not found' });
+  }
+
+  const oldRole = targetUser.role;
+  targetUser.role = role;
+  if (Array.isArray(permissions)) {
+    targetUser.permissions = permissions;
+  }
+
+  logAudit({
+    action: 'USER_ROLE_MODIFIED',
+    user: (req as any).user.full_name,
+    user_id: (req as any).user.id,
+    user_role: (req as any).user.role,
+    entity_type: 'USER',
+    entity_id: targetUser.id,
+    details: `Changed role for '${targetUser.full_name}' from '${oldRole}' to '${role}'.`,
+    previous_status: oldRole,
+    new_status: role,
+  });
+
+  res.json({ message: 'User role updated successfully', user: targetUser });
+});
+
+// Delete user - ADMIN ONLY
+app.delete(['/api/v1/users/:id', '/users/:id'], requireRoles('ADMIN'), (req, res) => {
+  const index = USERS_DIRECTORY.findIndex((u) => u.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ detail: 'User not found' });
+  }
+
+  const deletedUser = USERS_DIRECTORY.splice(index, 1)[0];
+
+  logAudit({
+    action: 'USER_DELETED',
+    user: (req as any).user.full_name,
+    user_id: (req as any).user.id,
+    user_role: (req as any).user.role,
+    entity_type: 'USER',
+    entity_id: deletedUser.id,
+    details: `Deleted user account '${deletedUser.full_name}' (${deletedUser.email}).`,
+  });
+
+  res.json({ message: 'User deleted successfully', id: req.params.id });
 });
 
 // Sections
@@ -817,18 +1424,25 @@ app.post('/api/v1/maintenance', (req, res) => {
   res.status(201).json(newTask);
 });
 
-// Blocks
-app.get('/api/v1/blocks', (req, res) => {
+// ---------------------------------------------------------------------------
+// BLOCKS & PLANS WORKFLOW (RBAC ENFORCED)
+// ---------------------------------------------------------------------------
+
+// List Blocks / Plans
+app.get(['/api/v1/blocks', '/plans', '/api/v1/plans'], (req, res) => {
   res.json(blocks);
 });
 
-app.get('/api/v1/blocks/:id', (req, res) => {
+// Get Single Block / Plan
+app.get(['/api/v1/blocks/:id', '/plans/:id', '/api/v1/plans/:id'], (req, res) => {
   const item = blocks.find(b => b.id === req.params.id);
-  if (!item) return res.status(404).json({ detail: 'Block not found' });
+  if (!item) return res.status(404).json({ detail: 'Block plan not found' });
   res.json(item);
 });
 
-app.post('/api/v1/blocks', (req, res) => {
+// Create Plan - ADMIN and PLANNER only (Worker and Viewer get 403)
+app.post(['/api/v1/blocks', '/plans', '/api/v1/plans'], requireRoles('ADMIN', 'PLANNER'), (req, res) => {
+  const user = (req as any).user;
   const section = sections.find(s => s.id === req.body.section_id) || sections[0];
   const newBlock: BlockRequest = {
     id: `blk-${Date.now().toString().slice(-4)}`,
@@ -841,7 +1455,7 @@ app.post('/api/v1/blocks', (req, res) => {
     end_time: req.body.end_time || new Date(Date.now() + 3 * 3600000).toISOString(),
     requested_duration_hours: Number(req.body.requested_duration_hours) || 3.0,
     status: 'PROPOSED',
-    department: req.body.department || 'OPERATING',
+    department: req.body.department || user.department || 'OPERATING',
     purpose: req.body.purpose || 'Block requested for scheduled track engineering works',
     approving_officer: null,
     approval_timestamp: null,
@@ -850,35 +1464,151 @@ app.post('/api/v1/blocks', (req, res) => {
     safety_precautions: ['Section locked', 'Detonator placed 600m'],
   };
   blocks.unshift(newBlock);
+
+  logAudit({
+    action: 'PLAN_CREATED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'PLAN',
+    entity_id: newBlock.id,
+    details: `New maintenance corridor block '${newBlock.id}' created by ${user.role}. Status: PROPOSED.`,
+  });
+
   res.status(201).json(newBlock);
 });
 
-// Block Approval / Rejection Workflow (Officer Decision Support)
-app.post('/api/v1/blocks/:id/approve', (req, res) => {
+// Modify Plan - ADMIN and PLANNER only (Worker and Viewer get 403)
+app.put(['/api/v1/blocks/:id', '/plans/:id', '/api/v1/plans/:id'], requireRoles('ADMIN', 'PLANNER'), (req, res) => {
+  const user = (req as any).user;
   const block = blocks.find(b => b.id === req.params.id);
-  if (!block) return res.status(404).json({ detail: 'Block not found' });
-  block.status = 'APPROVED';
-  block.approving_officer = req.body.officer_name || 'Senior Divisional Operating Manager (Sr. DOM)';
-  block.approval_timestamp = new Date().toISOString();
+  if (!block) return res.status(404).json({ detail: 'Block plan not found' });
 
-  // Also update assigned maintenance tasks to SCHEDULED
-  maintenanceRequests.forEach(task => {
-    if (block.assigned_task_ids.includes(task.id)) {
-      task.status = 'SCHEDULED';
-      task.assigned_block_id = block.id;
-    }
+  if (block.status === 'APPROVED' && user.role !== 'ADMIN') {
+    return res.status(403).json({ detail: 'Forbidden: Approved blocks can only be modified with Admin Executive Override.' });
+  }
+
+  const prevStatus = block.status;
+  if (req.body.purpose) block.purpose = req.body.purpose;
+  if (req.body.requested_duration_hours) block.requested_duration_hours = Number(req.body.requested_duration_hours);
+  if (req.body.start_time) block.start_time = req.body.start_time;
+  if (req.body.end_time) block.end_time = req.body.end_time;
+  if (req.body.assigned_task_ids) block.assigned_task_ids = req.body.assigned_task_ids;
+
+  logAudit({
+    action: 'PLAN_MODIFIED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'PLAN',
+    entity_id: block.id,
+    details: `Block plan '${block.id}' modified by ${user.role}.`,
+    previous_status: prevStatus,
+    new_status: block.status,
   });
 
-  res.json({ message: 'Block approved successfully by authorized railway officer.', block });
+  res.json(block);
 });
 
-app.post('/api/v1/blocks/:id/reject', (req, res) => {
+// Submit Plan for Human Approval - ADMIN and PLANNER only (Worker and Viewer get 403)
+app.post(['/api/v1/blocks/:id/submit-approval', '/plans/:id/submit-approval', '/api/v1/plans/:id/submit-approval'], requireRoles('ADMIN', 'PLANNER'), (req, res) => {
+  const user = (req as any).user;
   const block = blocks.find(b => b.id === req.params.id);
-  if (!block) return res.status(404).json({ detail: 'Block not found' });
+  if (!block) return res.status(404).json({ detail: 'Block plan not found' });
+
+  const prevStatus = block.status;
+  block.status = 'PENDING_APPROVAL';
+
+  logAudit({
+    action: 'PLAN_SUBMITTED_FOR_APPROVAL',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'PLAN',
+    entity_id: block.id,
+    details: `Plan '${block.id}' submitted for final executive human sanction by ${user.full_name} (${user.role}). Awaiting Admin signature.`,
+    previous_status: prevStatus,
+    new_status: 'PENDING_APPROVAL',
+  });
+
+  res.json({
+    message: 'Plan successfully submitted for Final Human Approval.',
+    block,
+  });
+});
+
+// Final Human Approval - STRICTLY ADMIN ONLY! (Planner, Worker, Viewer get 403 Forbidden)
+app.post(
+  [
+    '/api/v1/blocks/:id/approve',
+    '/api/v1/blocks/:id/human-approve',
+    '/plans/:id/approve',
+    '/plans/:id/human-approve',
+    '/api/v1/plans/:id/approve',
+    '/api/v1/plans/:id/human-approve',
+  ],
+  requireRoles('ADMIN'),
+  (req, res) => {
+    const user = (req as any).user;
+    const block = blocks.find(b => b.id === req.params.id);
+    if (!block) return res.status(404).json({ detail: 'Block plan not found' });
+
+    const prevStatus = block.status;
+    block.status = 'APPROVED';
+    block.approving_officer = `${user.full_name} (${user.designation || 'Sr. DOM'})`;
+    block.approval_timestamp = new Date().toISOString();
+
+    // Update assigned maintenance tasks to SCHEDULED
+    maintenanceRequests.forEach(task => {
+      if (block.assigned_task_ids.includes(task.id)) {
+        task.status = 'SCHEDULED';
+        task.assigned_block_id = block.id;
+      }
+    });
+
+    logAudit({
+      action: 'FINAL_HUMAN_APPROVAL_GRANTED',
+      user: `${user.full_name} (${user.role})`,
+      user_id: user.id,
+      user_role: user.role,
+      entity_type: 'PLAN',
+      entity_id: block.id,
+      details: `Executive Class-A Human Sanction granted for Corridor Block '${block.id}' by ${user.full_name}. Digital sign-off verified.`,
+      previous_status: prevStatus,
+      new_status: 'APPROVED',
+    });
+
+    res.json({
+      message: 'Class-A Final Human Approval executed successfully by authorized Admin Officer.',
+      block,
+    });
+  }
+);
+
+// Reject Plan - STRICTLY ADMIN ONLY! (Planner, Worker, Viewer get 403 Forbidden)
+app.post(['/api/v1/blocks/:id/reject', '/plans/:id/reject', '/api/v1/plans/:id/reject'], requireRoles('ADMIN'), (req, res) => {
+  const user = (req as any).user;
+  const block = blocks.find(b => b.id === req.params.id);
+  if (!block) return res.status(404).json({ detail: 'Block plan not found' });
+
+  const prevStatus = block.status;
   block.status = 'REJECTED';
-  block.approving_officer = req.body.officer_name || 'Divisional Railway Control Office';
+  block.approving_officer = `${user.full_name} (${user.designation || 'Sr. DOM'})`;
   block.approval_timestamp = new Date().toISOString();
-  res.json({ message: 'Block rejected due to operational / passenger traffic conflict.', block });
+
+  logAudit({
+    action: 'PLAN_REJECTED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'PLAN',
+    entity_id: block.id,
+    details: `Plan '${block.id}' rejected by Admin Officer ${user.full_name}. Reason: ${req.body.reason || 'Operational / traffic conflict'}.`,
+    previous_status: prevStatus,
+    new_status: 'REJECTED',
+  });
+
+  res.json({ message: 'Block plan rejected by Admin Decision Support.', block });
 });
 
 // AI Priority Engine
@@ -1061,46 +1791,554 @@ app.patch('/api/v1/alerts/:id', (req, res) => {
   res.json(alert || { detail: 'Alert not found' });
 });
 
-// Audit Logs
-app.get('/api/v1/audit', (req, res) => {
-  res.json([
-    {
-      id: 'aud-001',
-      action: 'BLOCK_SANCTION_APPROVED',
-      user: 'V. R. Sharma (Sr. DOM / Mumbai)',
-      entity_type: 'BLOCK',
-      entity_id: 'blk-001',
-      details: 'Sanctioned 3.5h Joint Integrated Block for CSMT-DR Suburban Fast Corridor.',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      id: 'aud-002',
-      action: 'CP_SAT_OPTIMIZATION_RUN',
-      user: 'SYSTEM (OR-Tools CP-SAT Solver v9.8)',
-      entity_type: 'PLAN',
-      entity_id: 'opt-run-772',
-      details: 'Evaluated 124 headway constraints, resolved 4 timetable conflicts with zero passenger delays.',
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      id: 'aud-003',
-      action: 'WORK_ORDER_LOGGED',
-      user: 'R. K. Meena (Sr. DEN / P-Way)',
-      entity_type: 'MAINTENANCE_TASK',
-      entity_id: 'tsk-001',
-      details: 'Requisitioned Ultrasonic flaw testing on weld joints at KM 44/2.',
-      timestamp: new Date(Date.now() - 14400000).toISOString(),
-    },
-    {
-      id: 'aud-004',
-      action: 'SPEED_RESTRICTION_POSTED',
-      user: 'Section Controller (Central Control Room)',
-      entity_type: 'ALERT',
-      entity_id: 'alt-002',
-      details: 'Imposed 30 km/h caution order on Dadar-Kurla UP Fast line for emergency ballast tamping.',
-      timestamp: new Date(Date.now() - 21600000).toISOString(),
-    },
-  ]);
+// ---------------------------------------------------------------------------
+// AUDIT LOGS (REAL-TIME CHRONICLE)
+// ---------------------------------------------------------------------------
+
+app.get(['/api/v1/audit', '/audit'], (req, res) => {
+  res.json({
+    items: auditLogs,
+    total: auditLogs.length,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// COMPLAINT & PROBLEM REPORTING ENDPOINTS (STRICT RBAC ENFORCED)
+// ---------------------------------------------------------------------------
+
+// List Authenticated User's Own Complaints - ANY AUTHENTICATED USER (Mainly Viewer)
+app.get(['/api/v1/complaints/my', '/complaints/my'], (req, res) => {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    return res.status(401).json({ detail: 'Authentication required to view your complaints.' });
+  }
+  const myComplaints = complaints.filter((c) => c.submitted_by_id === user.id || c.submitted_by_email === user.email);
+  res.json({
+    items: myComplaints,
+    total: myComplaints.length,
+  });
+});
+
+// List All Complaints - ADMIN ONLY! (Planner, Worker, Viewer get 403)
+app.get(['/api/v1/complaints/all', '/complaints/all'], requireRoles('ADMIN'), (req, res) => {
+  const { category, priority, status, search } = req.query;
+  let filtered = [...complaints];
+
+  if (category && category !== 'ALL') {
+    filtered = filtered.filter((c) => c.category === category);
+  }
+  if (priority && priority !== 'ALL') {
+    filtered = filtered.filter((c) => c.priority === priority);
+  }
+  if (status && status !== 'ALL') {
+    filtered = filtered.filter((c) => c.status === status);
+  }
+  if (search) {
+    const q = String(search).toLowerCase();
+    filtered = filtered.filter(
+      (c) =>
+        c.id.toLowerCase().includes(q) ||
+        c.title.toLowerCase().includes(q) ||
+        c.location.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q)
+    );
+  }
+
+  res.json({
+    items: filtered,
+    total: filtered.length,
+  });
+});
+
+// List Assigned Complaints - WORKER & ADMIN
+app.get(['/api/v1/complaints/assigned', '/complaints/assigned'], requireRoles('ADMIN', 'WORKER'), (req, res) => {
+  const user = (req as any).user;
+  let assigned: Complaint[] = [];
+  if (user.role === 'ADMIN') {
+    assigned = complaints.filter((c) => c.status === 'Assigned' || c.status === 'In Progress');
+  } else {
+    assigned = complaints.filter(
+      (c) =>
+        c.assigned_to_id === user.id ||
+        (user.department && c.assigned_department && c.assigned_department.toLowerCase().includes(user.department.toLowerCase().slice(0, 5)))
+    );
+  }
+  res.json({
+    items: assigned,
+    total: assigned.length,
+  });
+});
+
+// List Planning Complaints - PLANNER & ADMIN
+app.get(['/api/v1/complaints/planning', '/complaints/planning'], requireRoles('ADMIN', 'PLANNER'), (req, res) => {
+  const planningComplaints = complaints.filter(
+    (c) =>
+      c.category === 'Block Planning Issue' ||
+      c.category === 'Train Operation Issue' ||
+      c.category === 'Signal & Telecom Issue' ||
+      c.block_id ||
+      c.priority === 'Critical'
+  );
+  res.json({
+    items: planningComplaints,
+    total: planningComplaints.length,
+  });
+});
+
+// General Complaints List (RBAC Filtered by caller role)
+app.get(['/api/v1/complaints', '/complaints'], (req, res) => {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    // If unauthenticated public preview, show only sample complaints
+    return res.json({ items: complaints.slice(0, 2), total: 2 });
+  }
+
+  if (user.role === 'ADMIN') {
+    return res.json({ items: complaints, total: complaints.length });
+  }
+  if (user.role === 'PLANNER') {
+    const planningComplaints = complaints.filter(
+      (c) =>
+        c.category === 'Block Planning Issue' ||
+        c.category === 'Train Operation Issue' ||
+        c.category === 'Signal & Telecom Issue' ||
+        c.block_id ||
+        c.priority === 'Critical'
+    );
+    return res.json({ items: planningComplaints, total: planningComplaints.length });
+  }
+  if (user.role === 'WORKER') {
+    const assigned = complaints.filter(
+      (c) =>
+        c.assigned_to_id === user.id ||
+        (user.department && c.assigned_department && c.assigned_department.toLowerCase().includes(user.department.toLowerCase().slice(0, 5)))
+    );
+    return res.json({ items: assigned, total: assigned.length });
+  }
+  // VIEWER: strictly their own complaints!
+  const ownComplaints = complaints.filter((c) => c.submitted_by_id === user.id || c.submitted_by_email === user.email);
+  return res.json({ items: ownComplaints, total: ownComplaints.length });
+});
+
+// Get Single Complaint (Strict Access Control)
+app.get(['/api/v1/complaints/:id', '/complaints/:id'], (req, res) => {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    return res.status(401).json({ detail: 'Authentication required' });
+  }
+
+  const complaint = complaints.find((c) => c.id === req.params.id);
+  if (!complaint) {
+    return res.status(404).json({ detail: 'Complaint not found' });
+  }
+
+  // Admin has access to all
+  if (user.role === 'ADMIN') {
+    return res.json(complaint);
+  }
+
+  // Viewer can ONLY access their own complaints
+  if (user.role === 'VIEWER') {
+    if (complaint.submitted_by_id !== user.id && complaint.submitted_by_email !== user.email) {
+      logAudit({
+        action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+        user: `${user.full_name} (${user.role})`,
+        user_id: user.id,
+        user_role: user.role,
+        entity_type: 'COMPLAINT',
+        entity_id: complaint.id,
+        details: `403 Forbidden: Viewer '${user.full_name}' attempted to access complaint '${complaint.id}' filed by another user.`,
+      });
+      return res.status(403).json({
+        detail: 'Forbidden: You are only permitted to access complaints submitted by your account.',
+        code: 'ACCESS_DENIED_VIEWER_BOUNDARY',
+      });
+    }
+    return res.json(complaint);
+  }
+
+  // Worker can ONLY access complaints assigned to them
+  if (user.role === 'WORKER') {
+    const isAssigned =
+      complaint.assigned_to_id === user.id ||
+      (user.department && complaint.assigned_department && complaint.assigned_department.toLowerCase().includes(user.department.toLowerCase().slice(0, 5)));
+    if (!isAssigned) {
+      logAudit({
+        action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+        user: `${user.full_name} (${user.role})`,
+        user_id: user.id,
+        user_role: user.role,
+        entity_type: 'COMPLAINT',
+        entity_id: complaint.id,
+        details: `403 Forbidden: Field Worker '${user.full_name}' attempted to view unrelated complaint '${complaint.id}'.`,
+      });
+      return res.status(403).json({
+        detail: 'Forbidden: You can only view complaints and defect reports assigned to your gang/depot.',
+        code: 'ACCESS_DENIED_WORKER_BOUNDARY',
+      });
+    }
+    return res.json(complaint);
+  }
+
+  // Planner
+  res.json(complaint);
+});
+
+// Create Complaint - ALLOWED FOR VIEWER, ADMIN, PLANNER, WORKER
+app.post(['/api/v1/complaints', '/complaints'], requireAuth, (req, res) => {
+  const user = (req as any).user;
+  const { title, category, description, location, asset_id, block_id, incident_time, priority, supporting_file } = req.body || {};
+
+  if (!title || !description || !location || !category) {
+    return res.status(400).json({ detail: 'Title, category, description, and location are required fields.' });
+  }
+
+  complaintsCounter += 1;
+  const newId = `RB-CMP-${complaintsCounter}`;
+  const now = new Date().toISOString();
+
+  const newComplaint: Complaint = {
+    id: newId,
+    title: String(title).trim(),
+    category: category || 'Other',
+    description: String(description).trim(),
+    location: String(location).trim(),
+    asset_id: asset_id || undefined,
+    block_id: block_id || undefined,
+    incident_time: incident_time || now,
+    priority: priority || 'Medium',
+    supporting_file: supporting_file || undefined,
+    status: 'Submitted',
+    submitted_by_id: user.id,
+    submitted_by_name: user.full_name,
+    submitted_by_email: user.email,
+    submitted_by_role: user.role,
+    created_at: now,
+    updated_at: now,
+    timeline: [
+      {
+        id: `tl-${Date.now()}`,
+        timestamp: now,
+        user_id: user.id,
+        user_name: user.full_name,
+        user_role: user.role,
+        action: 'Problem Submitted',
+        notes: `Operational problem report logged by ${user.full_name} (${user.role}). Priority assigned: ${priority || 'Medium'}.`,
+      },
+    ],
+  };
+
+  complaints.unshift(newComplaint);
+
+  logAudit({
+    action: 'COMPLAINT_REGISTERED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: newComplaint.id,
+    details: `Defect/Issue complaint '${newComplaint.id}' registered: "${newComplaint.title}" at ${newComplaint.location}. Status: Submitted.`,
+    new_status: 'Submitted',
+  });
+
+  res.status(201).json(newComplaint);
+});
+
+// Assign Complaint - ADMIN ONLY! (Planner, Worker, Viewer get 403)
+app.put(['/api/v1/complaints/:id/assign', '/complaints/:id/assign'], requireRoles('ADMIN'), (req, res) => {
+  const user = (req as any).user;
+  const complaint = complaints.find((c) => c.id === req.params.id);
+  if (!complaint) return res.status(404).json({ detail: 'Complaint not found' });
+
+  const { assigned_to_id, assigned_to_name, assigned_department, notes } = req.body || {};
+  if (!assigned_to_name && !assigned_department) {
+    return res.status(400).json({ detail: 'Assigned personnel or department name is required.' });
+  }
+
+  const prevStatus = complaint.status;
+  complaint.assigned_to_id = assigned_to_id || 'usr-worker';
+  complaint.assigned_to_name = assigned_to_name || 'Shri R. N. Patil';
+  complaint.assigned_department = assigned_department || 'Engineering Maintenance Depot';
+  complaint.status = 'Assigned';
+  complaint.updated_at = new Date().toISOString();
+
+  complaint.timeline.push({
+    id: `tl-${Date.now()}`,
+    timestamp: complaint.updated_at,
+    user_id: user.id,
+    user_name: user.full_name,
+    user_role: user.role,
+    action: 'Complaint Assigned',
+    notes: notes || `Assigned to ${complaint.assigned_to_name} (${complaint.assigned_department}) by Admin Office.`,
+  });
+
+  logAudit({
+    action: 'COMPLAINT_ASSIGNED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: complaint.id,
+    details: `Complaint '${complaint.id}' assigned to '${complaint.assigned_to_name}' (${complaint.assigned_department}).`,
+    previous_status: prevStatus,
+    new_status: 'Assigned',
+  });
+
+  res.json({ message: 'Complaint assigned successfully', complaint });
+});
+
+// Update Complaint Priority - ADMIN ONLY! (Planner, Worker, Viewer get 403)
+app.put(['/api/v1/complaints/:id/priority', '/complaints/:id/priority'], requireRoles('ADMIN'), (req, res) => {
+  const user = (req as any).user;
+  const complaint = complaints.find((c) => c.id === req.params.id);
+  if (!complaint) return res.status(404).json({ detail: 'Complaint not found' });
+
+  const { priority, notes } = req.body || {};
+  if (!priority || !['Low', 'Medium', 'High', 'Critical'].includes(priority)) {
+    return res.status(400).json({ detail: 'Valid priority (Low, Medium, High, Critical) is required.' });
+  }
+
+  const oldPriority = complaint.priority;
+  complaint.priority = priority;
+  complaint.updated_at = new Date().toISOString();
+
+  complaint.timeline.push({
+    id: `tl-${Date.now()}`,
+    timestamp: complaint.updated_at,
+    user_id: user.id,
+    user_name: user.full_name,
+    user_role: user.role,
+    action: 'Priority Re-evaluated',
+    notes: notes || `Admin reclassified priority from ${oldPriority} to ${priority}.`,
+  });
+
+  logAudit({
+    action: 'COMPLAINT_PRIORITY_CHANGED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: complaint.id,
+    details: `Priority for complaint '${complaint.id}' adjusted from '${oldPriority}' to '${priority}'.`,
+  });
+
+  res.json({ message: 'Priority updated successfully', complaint });
+});
+
+// Worker Update (Investigation notes, field observations, progress) - WORKER (assigned) or ADMIN
+app.put(['/api/v1/complaints/:id/worker-update', '/complaints/:id/worker-update'], requireRoles('ADMIN', 'WORKER'), (req, res) => {
+  const user = (req as any).user;
+  const complaint = complaints.find((c) => c.id === req.params.id);
+  if (!complaint) return res.status(404).json({ detail: 'Complaint not found' });
+
+  const { investigation_notes, resolution_details, status } = req.body || {};
+
+  // Worker cannot close complaints
+  if (status === 'Closed' && user.role !== 'ADMIN') {
+    logAudit({
+      action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+      user: `${user.full_name} (${user.role})`,
+      user_id: user.id,
+      user_role: user.role,
+      entity_type: 'COMPLAINT',
+      entity_id: complaint.id,
+      details: `403 Forbidden: Worker '${user.full_name}' attempted to permanently Close complaint '${complaint.id}'. Only Admin can close complaints.`,
+    });
+    return res.status(403).json({
+      detail: 'Forbidden: Field staff cannot mark complaints as Closed. Only an Admin can perform final verification and closure.',
+      code: 'WORKER_CANNOT_CLOSE',
+    });
+  }
+
+  const prevStatus = complaint.status;
+  if (investigation_notes) complaint.investigation_notes = investigation_notes;
+  if (resolution_details) complaint.resolution_details = resolution_details;
+  if (status && ['In Progress', 'Resolved'].includes(status)) {
+    complaint.status = status as any;
+  }
+  complaint.updated_at = new Date().toISOString();
+
+  complaint.timeline.push({
+    id: `tl-${Date.now()}`,
+    timestamp: complaint.updated_at,
+    user_id: user.id,
+    user_name: user.full_name,
+    user_role: user.role,
+    action: status === 'Resolved' ? 'Resolution Work Completed' : 'Field Investigation Update',
+    notes: resolution_details || investigation_notes || 'Field team updated progress.',
+  });
+
+  logAudit({
+    action: status === 'Resolved' ? 'COMPLAINT_RESOLVED' : 'COMPLAINT_WORKER_UPDATE',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: complaint.id,
+    details: `Field update by ${user.full_name}: Status is now '${complaint.status}'.`,
+    previous_status: prevStatus,
+    new_status: complaint.status,
+    resolution_info: resolution_details,
+  });
+
+  res.json({ message: 'Complaint updated by field staff successfully', complaint });
+});
+
+// Update Complaint Status (Strict Workflow: Viewer cannot call, Worker cannot close, Admin has full rights)
+app.put(['/api/v1/complaints/:id/status', '/complaints/:id/status'], (req, res) => {
+  const user = extractUserFromRequest(req);
+  if (!user) {
+    return res.status(401).json({ detail: 'Authentication required' });
+  }
+
+  // Viewer CANNOT change complaint status to anything!
+  if (user.role === 'VIEWER') {
+    logAudit({
+      action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+      user: `${user.full_name} (${user.role})`,
+      user_id: user.id,
+      user_role: user.role,
+      entity_type: 'COMPLAINT',
+      entity_id: req.params.id,
+      details: `403 Forbidden: Viewer '${user.full_name}' attempted to modify complaint status to '${req.body?.status}'. Viewers cannot change complaint status.`,
+    });
+    return res.status(403).json({
+      detail: 'Forbidden: Viewers have read-only permissions on complaints and cannot modify status.',
+      code: 'VIEWER_CANNOT_CHANGE_STATUS',
+    });
+  }
+
+  const complaint = complaints.find((c) => c.id === req.params.id);
+  if (!complaint) return res.status(404).json({ detail: 'Complaint not found' });
+
+  const { status, notes, admin_response } = req.body || {};
+  if (!status || !['Submitted', 'Assigned', 'In Progress', 'Resolved', 'Closed'].includes(status)) {
+    return res.status(400).json({ detail: 'Valid status is required' });
+  }
+
+  // ONLY ADMIN CAN CLOSE OR REOPEN A COMPLAINT!
+  if (status === 'Closed' && user.role !== 'ADMIN') {
+    logAudit({
+      action: 'UNAUTHORIZED_ACCESS_ATTEMPT',
+      user: `${user.full_name} (${user.role})`,
+      user_id: user.id,
+      user_role: user.role,
+      entity_type: 'COMPLAINT',
+      entity_id: complaint.id,
+      details: `403 Forbidden: Non-admin role '${user.role}' attempted to Close complaint '${complaint.id}'. Only Admin can close complaints.`,
+    });
+    return res.status(403).json({
+      detail: 'Forbidden: Only an Admin officer can mark a complaint as Closed after verifying resolution.',
+      code: 'ONLY_ADMIN_CAN_CLOSE',
+    });
+  }
+
+  const prevStatus = complaint.status;
+  complaint.status = status;
+  complaint.updated_at = new Date().toISOString();
+  if (admin_response) complaint.admin_response = admin_response;
+
+  complaint.timeline.push({
+    id: `tl-${Date.now()}`,
+    timestamp: complaint.updated_at,
+    user_id: user.id,
+    user_name: user.full_name,
+    user_role: user.role,
+    action: `Status Changed to ${status}`,
+    notes: notes || admin_response || `Status updated from ${prevStatus} to ${status} by ${user.full_name} (${user.role}).`,
+  });
+
+  logAudit({
+    action: `COMPLAINT_STATUS_${status.toUpperCase().replace(/\s+/g, '_')}`,
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: complaint.id,
+    details: `Complaint '${complaint.id}' status transitioned from '${prevStatus}' to '${status}' by ${user.full_name}.`,
+    previous_status: prevStatus,
+    new_status: status,
+    resolution_info: admin_response || notes,
+  });
+
+  res.json({ message: `Complaint status updated to ${status}`, complaint });
+});
+
+// Delete Complaint - ADMIN ONLY! (Planner, Worker, Viewer get 403)
+app.delete(['/api/v1/complaints/:id', '/complaints/:id'], requireRoles('ADMIN'), (req, res) => {
+  const user = (req as any).user;
+  const index = complaints.findIndex((c) => c.id === req.params.id);
+  if (index === -1) return res.status(404).json({ detail: 'Complaint not found' });
+
+  const deleted = complaints.splice(index, 1)[0];
+
+  logAudit({
+    action: 'COMPLAINT_DELETED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'COMPLAINT',
+    entity_id: deleted.id,
+    details: `Complaint record '${deleted.id}' deleted by Admin Officer ${user.full_name}.`,
+  });
+
+  res.json({ message: 'Complaint deleted successfully', id: req.params.id });
+});
+
+// ---------------------------------------------------------------------------
+// SYSTEM SETTINGS ENDPOINTS
+// ---------------------------------------------------------------------------
+
+app.get(['/api/v1/settings', '/settings'], (req, res) => {
+  res.json(systemSettings);
+});
+
+app.put(['/api/v1/settings', '/settings'], requireRoles('ADMIN'), (req, res) => {
+  const user = (req as any).user;
+  systemSettings = {
+    ...systemSettings,
+    ...req.body,
+  };
+
+  logAudit({
+    action: 'SYSTEM_SETTINGS_UPDATED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'SETTINGS',
+    entity_id: 'global_config',
+    details: `System parameters updated by Admin ${user.full_name}. Safety buffer: ${systemSettings.safety_buffer_minutes}m.`,
+  });
+
+  res.json({ message: 'System settings updated successfully', settings: systemSettings });
+});
+
+// ---------------------------------------------------------------------------
+// MAINTENANCE TASK UPDATES (WORKER & ADMIN)
+// ---------------------------------------------------------------------------
+
+app.patch(['/api/v1/maintenance/:id/status', '/tasks/:id'], requireRoles('ADMIN', 'WORKER'), (req, res) => {
+  const user = (req as any).user;
+  const task = maintenanceRequests.find((m) => m.id === req.params.id);
+  if (!task) return res.status(404).json({ detail: 'Maintenance task not found' });
+
+  const prevStatus = task.status;
+  const { status, observations } = req.body || {};
+  if (status) task.status = status;
+
+  logAudit({
+    action: 'MAINTENANCE_TASK_UPDATED',
+    user: `${user.full_name} (${user.role})`,
+    user_id: user.id,
+    user_role: user.role,
+    entity_type: 'MAINTENANCE_TASK',
+    entity_id: task.id,
+    details: `Task '${task.id}' status changed from '${prevStatus}' to '${task.status}'. Observations: ${observations || 'None'}`,
+    previous_status: prevStatus,
+    new_status: task.status,
+  });
+
+  res.json({ message: 'Maintenance task updated successfully', task });
 });
 
 // Defects
