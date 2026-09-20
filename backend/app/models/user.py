@@ -12,14 +12,8 @@ from app.models.base import Base
 
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
-    ENGINEERING = "ENGINEERING"
-    ST = "ST"
-    TRD = "TRD"
     PLANNER = "PLANNER"
-    TRAFFIC_CONTROLLER = "TRAFFIC_CONTROLLER"
-    MANAGER = "MANAGER"
-    EXECUTIVE = "EXECUTIVE"
-    AUDITOR = "AUDITOR"
+    WORKER = "WORKER"
 
 class User(Base):
     __tablename__ = "users"

@@ -103,7 +103,7 @@ export interface MaintenanceRequest {
   corridor?: string
 }
 
-export type UserRole = 'ADMIN' | 'PLANNER' | 'WORKER' | 'VIEWER'
+export type UserRole = 'ADMIN' | 'PLANNER' | 'WORKER'
 
 export interface UserProfile {
   id: string
@@ -120,84 +120,172 @@ export interface UserProfile {
   status?: 'ACTIVE' | 'SUSPENDED'
 }
 
-export type ComplaintCategory =
-  | 'Track / Infrastructure Issue'
-  | 'Signal & Telecom Issue'
-  | 'Electrical / Traction Issue'
-  | 'Asset Failure'
-  | 'Safety Issue'
-  | 'Train Operation Issue'
-  | 'Block Planning Issue'
-  | 'Maintenance Issue'
-  | 'TRACK_DEFECT'
-  | 'SIGNAL_FAILURE'
-  | 'OHE_TRACTION'
-  | 'SAFETY_HAZARD'
-  | 'STATION_AMENITY'
-  | 'TRAIN_DELAY_ISSUE'
-  | 'OTHER'
-  | string
+// ---------------------------------------------------------------------------
+// PLAN OPTIMIZATION & RESOURCE MANAGEMENT TYPES
+// ---------------------------------------------------------------------------
 
-export type ComplaintPriority = 'Low' | 'Medium' | 'High' | 'Critical' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type PlanType = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
-export type ComplaintStatus =
-  | 'Submitted'
-  | 'Assigned'
-  | 'In Progress'
-  | 'Resolved'
-  | 'Closed'
-  | 'SUBMITTED'
-  | 'ASSIGNED'
-  | 'IN_PROGRESS'
-  | 'RESOLVED'
-  | 'CLOSED'
+export type PlanStatus =
+  | 'DRAFT'
+  | 'OPTIMIZED'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'REJECTED'
 
-export interface ComplaintTimelineItem {
+export type ConflictType =
+  | 'TRAIN_CONFLICT'
+  | 'RESOURCE_CONFLICT'
+  | 'TIME_CONFLICT'
+  | 'ASSET_CONFLICT'
+  | 'CORRIDOR_CONFLICT'
+
+export interface PlanConflict {
   id: string
-  timestamp: string
-  user_id: string
-  user_name: string
-  user_role: string
-  action: string
-  notes: string
+  plan_id?: string
+  conflict_type: ConflictType
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  title: string
+  description: string
+  corridor?: string
+  entities_involved: string[]
+  suggested_resolution: string
+  is_resolved?: boolean
 }
 
-export interface Complaint {
+export interface PlanTask {
   id: string
+  task_id?: string
   title: string
-  category: ComplaintCategory
-  description: string
-  location: string
-  station?: string
-  zone?: string
-  section_id?: string
   asset_id?: string
+  asset_name?: string
+  section_id?: string
+  section_name?: string
+  corridor?: string
+  department: string
+  scheduled_date?: string
+  scheduled_start?: string
+  scheduled_end?: string
+  start_time?: string
+  end_time?: string
+  duration_minutes?: number
+  duration_hours?: number
   block_id?: string
-  incident_time?: string
-  priority: ComplaintPriority
-  supporting_file?: string
-  status: ComplaintStatus
-  submitted_by_id?: string
-  submitted_by_name?: string
-  submitted_by_email?: string
-  submitted_by_role?: string
-  reported_by_id?: string
-  reported_by_name?: string
-  reported_by_role?: UserRole | string
-  assigned_to_id?: string | null
-  assigned_to_name?: string | null
-  assigned_to_role?: UserRole | string | null
-  assigned_department?: string
-  worker_notes?: string
-  investigation_notes?: string
-  resolution_details?: string
-  resolution_summary?: string
-  admin_response?: string
-  resolved_at?: string | null
-  closed_at?: string | null
+  track_id?: string
+  is_shadow_block?: boolean
+  assigned_gang_id?: string
+  assigned_machine_id?: string | null
+  assigned_resource_id?: string
+  assigned_resource_name?: string
+  priority_score?: number
+  failure_risk?: number
+  train_impact_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  train_impact_score?: number
+  decision_explanation?: string
+  status: 'PENDING' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CONFLICT'
+  conflicts_detected?: string[]
+  day_of_week?: 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN'
+}
+
+export interface OptimizationMetricComparison {
+  baseline_value: number
+  optimized_value: number
+  improvement_percentage: number
+  unit?: string
+}
+
+export interface OptimizationMetric {
+  tasks_total?: number
+  tasks_scheduled?: number
+  high_priority_tasks?: number
+  blocks_required?: number
+  optimized_blocks?: number
+  conflicts_before?: number
+  conflicts_after?: number
+  train_impact_before?: number
+  train_impact_after?: number
+  resource_utilization_before?: number
+  resource_utilization_after?: number
+  block_utilization_before?: number
+  block_utilization_after?: number
+  asset_availability_before?: number
+  asset_availability_after?: number
+  unscheduled_tasks_before?: number
+  unscheduled_tasks_after?: number
+  delayed_tasks_before?: number
+  delayed_tasks_after?: number
+  solver_time_ms?: number
+  objective_score?: number
+  total_block_minutes?: number
+  maintenance_hours_granted?: number
+  total_train_delay_minutes?: number
+  delay_reduction_pct?: number
+  punctuality_score?: number
+  resource_utilization_pct?: number
+  headway_compliance_score?: number
+  conflicts_resolved_count?: number
+  comparisons?: Record<string, OptimizationMetricComparison>
+}
+
+export interface PlanVersion {
+  version: number
+  version_tag: string
+  created_by: string
   created_at: string
-  updated_at: string
-  timeline?: ComplaintTimelineItem[]
+  optimization_type: PlanType
+  plan_period: string
+  metrics: OptimizationMetric
+  changes_summary: string
+  approval_status: PlanStatus
+}
+
+export interface PlanRecommendation {
+  id: string
+  category: 'MAINTENANCE_WINDOW' | 'RESOURCE_REBALANCING' | 'CORRIDOR_SAFETY' | 'RISK_MITIGATION'
+  title: string
+  recommendation: string
+  based_on_metric: string
+  confidence: number
+  impact: string
+}
+
+export interface Plan {
+  id: string
+  plan_type?: PlanType
+  level?: 'DAILY' | 'WEEKLY' | 'MONTHLY'
+  corridor_id?: string
+  corridor?: string
+  title: string
+  period_start: string
+  period_end: string
+  status: PlanStatus
+  version: number
+  current_version_id?: string
+  tasks: PlanTask[]
+  blocks?: BlockRequest[]
+  conflicts?: PlanConflict[]
+  metrics: OptimizationMetric
+  recommendations?: PlanRecommendation[]
+  created_by?: string
+  created_at?: string
+  updated_at?: string
+  approved_by?: string | null
+  approved_at?: string | null
+  published_at?: string | null
+  notes?: string
+}
+
+export interface Resource {
+  id: string
+  name: string
+  type: 'LABOUR_GANG' | 'SPECIAL_VEHICLE' | 'TRACK_MACHINE' | 'SPECIALIST_GANG'
+  strength: number
+  depot: string
+  division?: string
+  section_id?: string
+  is_available: boolean
+  current_task_id?: string | null
 }
 
 export interface AuditLogItem {

@@ -46,7 +46,6 @@ export type UserRole =
   | 'maintenance_supervisor'
   | 'track_supervisor'
   | 'dispatcher'
-  | 'viewer'
 
 export type AssetType =
   | 'track'

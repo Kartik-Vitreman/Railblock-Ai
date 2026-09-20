@@ -269,66 +269,83 @@ export const blocksApi = {
   },
 }
 
-export const complaintsApi = {
-  listMy: async () => {
-    const { data } = await apiClient.get('/api/v1/complaints/my')
-    return normalizeList(data)
+export const plansApi = {
+  getDaily: async (date?: string) => {
+    const { data } = await apiClient.get('/api/plans/daily', { params: { date } })
+    return data
   },
-  listAll: async (params?: any) => {
-    const { data } = await apiClient.get('/api/v1/complaints/all', { params })
-    return normalizeList(data)
+  getWeekly: async (week_start?: string) => {
+    const { data } = await apiClient.get('/api/plans/weekly', { params: { week_start } })
+    return data
   },
-  listAssigned: async () => {
-    const { data } = await apiClient.get('/api/v1/complaints/assigned')
-    return normalizeList(data)
-  },
-  listPlanning: async () => {
-    const { data } = await apiClient.get('/api/v1/complaints/planning')
-    return normalizeList(data)
-  },
-  list: async (params?: any) => {
-    const { data } = await apiClient.get('/api/v1/complaints', { params })
-    return normalizeList(data)
-  },
-  get: async (id: string) => {
-    const { data } = await apiClient.get(`/api/v1/complaints/${id}`)
+  getMonthly: async (month?: number, year?: number) => {
+    const { data } = await apiClient.get('/api/plans/monthly', { params: { month, year } })
     return data
   },
   getById: async (id: string) => {
-    const { data } = await apiClient.get(`/api/v1/complaints/${id}`)
+    const { data } = await apiClient.get(`/api/plans/${id}`)
     return data
   },
-  create: async (payload: any) => {
-    const { data } = await apiClient.post('/api/v1/complaints', payload)
+  optimizeDaily: async (params?: { date?: string; horizon_days?: number }) => {
+    const { data } = await apiClient.post('/api/plans/daily/optimize', params || {})
     return data
   },
-  assign: async (
-    id: string,
-    assignedOrPayload: string | { assigned_to_id: string; assigned_to_name?: string; assigned_department?: string; notes?: string; priority?: string },
-    priority?: string
-  ) => {
-    const payload =
-      typeof assignedOrPayload === 'string'
-        ? { assigned_to_id: assignedOrPayload, priority }
-        : assignedOrPayload
-    const { data } = await apiClient.put(`/api/v1/complaints/${id}/assign`, payload)
+  optimizeWeekly: async (params?: { week_start?: string; corridor?: string }) => {
+    const { data } = await apiClient.post('/api/plans/weekly/optimize', params || {})
     return data
   },
-  updatePriority: async (id: string, priority: string, notes?: string) => {
-    const { data } = await apiClient.put(`/api/v1/complaints/${id}/priority`, { priority, notes })
+  optimizeMonthly: async (params?: { month?: number; year?: number; zone?: string }) => {
+    const { data } = await apiClient.post('/api/plans/monthly/optimize', params || {})
     return data
   },
-  workerUpdate: async (id: string, payload: { worker_notes?: string; resolution_summary?: string; investigation_notes?: string; resolution_details?: string; status?: string; mark_resolved?: boolean }) => {
-    const { data } = await apiClient.put(`/api/v1/complaints/${id}/worker-update`, payload)
+  save: async (id: string, payload: any) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/save`, payload)
     return data
   },
-  updateStatus: async (id: string, payload: { status: string; notes?: string; admin_response?: string; resolution_summary?: string; worker_notes?: string }) => {
-    const { data } = await apiClient.put(`/api/v1/complaints/${id}/status`, payload)
+  approve: async (id: string, payload?: any) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/approve`, payload || {})
     return data
   },
-  delete: async (id: string) => {
-    const { data } = await apiClient.delete(`/api/v1/complaints/${id}`)
+  publish: async (id: string, payload?: any) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/publish`, payload || {})
     return data
+  },
+  getVersions: async (id: string) => {
+    const { data } = await apiClient.get(`/api/plans/${id}/versions`)
+    return data
+  },
+  compareVersions: async (id: string, versionA?: number, versionB?: number) => {
+    const { data } = await apiClient.get(`/api/plans/${id}/comparison`, {
+      params: { versionA, versionB },
+    })
+    return data
+  },
+  getMetrics: async (id: string) => {
+    const { data } = await apiClient.get(`/api/plans/${id}/optimization-metrics`)
+    return data
+  },
+  reoptimize: async (id: string, params?: any) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/reoptimize`, params || {})
+    return data
+  },
+  restoreVersion: async (id: string, version: number) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/restore`, { version })
+    return data
+  },
+  validate: async (id: string) => {
+    const { data } = await apiClient.post(`/api/plans/${id}/validate`)
+    return data
+  },
+  exportPlan: async (id: string, format: 'PDF' | 'EXCEL' | 'CSV') => {
+    const { data } = await apiClient.post(`/api/plans/${id}/export`, { format })
+    return data
+  },
+}
+
+export const resourcesApi = {
+  list: async (params?: any) => {
+    const { data } = await apiClient.get('/api/v1/resources', { params })
+    return normalizeList(data)
   },
 }
 

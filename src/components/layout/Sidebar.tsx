@@ -16,7 +16,6 @@ import {
   HardHat,
   Radio,
   Building2,
-  Eye,
   LifeBuoy,
   Users,
   Settings,
@@ -51,118 +50,130 @@ const navSections: NavSection[] = [
     defaultTitle: 'OPERATIONS',
     items: [
       {
-        labelKey: 'nav.trains',
-        defaultLabel: 'Train Operations',
-        path: '/trains',
-        icon: Train,
-        priorityForRole: 'PLANNER',
-        tooltipDesc: 'Real-time train monitoring, timetable regulation, and Kavach ATP status',
-      },
-      {
-        labelKey: 'nav.blocks',
-        defaultLabel: 'Block Planning',
-        path: '/blocks',
-        icon: CalendarDays,
-        priorityForRole: 'PLANNER',
-        allowedRoles: ['ADMIN', 'PLANNER', 'WORKER'],
-        tooltipDesc: 'Corridor possession scheduling, AI solver plans, and human approval workflow',
-      },
-      {
-        labelKey: 'nav.network',
-        defaultLabel: 'Schedule & National GIS',
-        path: '/network',
-        icon: MapPin,
-        priorityForRole: 'PLANNER',
-        tooltipDesc: 'Pan-India 17-zone network map, junctions, and live line block overlays',
-      },
-    ],
-  },
-  {
-    titleKey: 'nav.safety_complaints',
-    defaultTitle: 'REPORTING & COMPLAINTS',
-    items: [
-      {
-        labelKey: 'nav.complaints',
-        defaultLabel: 'Complaints & Problems',
-        path: '/complaints',
-        icon: LifeBuoy,
-        badge: 'RBAC',
-        priorityForRole: 'VIEWER',
-        tooltipDesc: 'Report and manage operational problems, track faults, and safety complaints',
-      },
-    ],
-  },
-  {
-    titleKey: 'nav.maintenance',
-    defaultTitle: 'MAINTENANCE',
-    allowedRoles: ['ADMIN', 'PLANNER', 'WORKER'],
-    items: [
-      {
-        labelKey: 'nav.maint_requests',
-        defaultLabel: 'Maintenance Requests',
-        path: '/maintenance',
-        icon: Wrench,
-        priorityForRole: 'WORKER',
-        tooltipDesc: 'File P-Way work orders, rail renewal requisitions, and machine slots',
-      },
-      {
         labelKey: 'nav.assets',
-        defaultLabel: 'Asset Intelligence',
+        defaultLabel: 'Assets',
         path: '/assets',
         icon: Database,
         priorityForRole: 'WORKER',
         tooltipDesc: 'Track condition index (TGI), USFD rail defect logs, and bridge assets',
       },
       {
-        labelKey: 'nav.alerts',
-        defaultLabel: 'Operational Alerts',
-        path: '/alerts',
-        icon: AlertTriangle,
-        tooltipDesc: 'Caution orders, temporary speed restrictions (TSR), and safety alarms',
+        labelKey: 'nav.tasks',
+        defaultLabel: 'Tasks',
+        path: '/tasks',
+        icon: Wrench,
+        priorityForRole: 'WORKER',
+        tooltipDesc: 'File P-Way work orders, rail renewal requisitions, and machine slots',
+      },
+      {
+        labelKey: 'nav.trains',
+        defaultLabel: 'Trains',
+        path: '/trains',
+        icon: Train,
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Real-time train monitoring, timetable regulation, and Kavach ATP status',
+      },
+      {
+        labelKey: 'nav.corridors',
+        defaultLabel: 'Corridors',
+        path: '/corridors',
+        icon: MapPin,
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Pan-India 17-zone network corridors, junctions, and live line block overlays',
+      },
+      {
+        labelKey: 'nav.resources',
+        defaultLabel: 'Resources',
+        path: '/resources',
+        icon: HardHat,
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Maintenance crew gangs, OHE tower wagons, ballast tampers, and USFD squads',
+      },
+    ],
+  },
+  {
+    titleKey: 'nav.blocks_heading',
+    defaultTitle: 'BLOCK MANAGEMENT',
+    allowedRoles: ['ADMIN', 'PLANNER', 'WORKER'],
+    items: [
+      {
+        labelKey: 'nav.blocks',
+        defaultLabel: 'Block Management',
+        path: '/blocks',
+        icon: CalendarDays,
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Corridor possession scheduling, AI solver plans, and human approval workflow',
+      },
+    ],
+  },
+  {
+    titleKey: 'nav.optimization_heading',
+    defaultTitle: 'PLAN OPTIMIZATION',
+    allowedRoles: ['ADMIN', 'PLANNER'],
+    items: [
+      {
+        labelKey: 'nav.daily_plan',
+        defaultLabel: 'Daily Optimization',
+        path: '/optimization?level=daily',
+        icon: GitCompare,
+        badge: 'DAILY',
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Daily horizon CP-SAT timetable optimization and conflict resolution',
+      },
+      {
+        labelKey: 'nav.weekly_plan',
+        defaultLabel: 'Weekly Optimization',
+        path: '/optimization?level=weekly',
+        icon: GitCompare,
+        badge: '7-DAY',
+        priorityForRole: 'PLANNER',
+        tooltipDesc: 'Full 7-day multi-corridor workload balancing and block allocation',
+      },
+      {
+        labelKey: 'nav.monthly_plan',
+        defaultLabel: 'Monthly Optimization',
+        path: '/optimization?level=monthly',
+        icon: GitCompare,
+        badge: 'MONTH',
+        priorityForRole: 'ADMIN',
+        tooltipDesc: 'Monthly calendar trends, risk assessment, and recommended maintenance windows',
       },
     ],
   },
   {
     titleKey: 'nav.ai_support',
-    defaultTitle: 'AI & DECISION SUPPORT',
+    defaultTitle: 'DECISION SUPPORT & GOVERNANCE',
     allowedRoles: ['ADMIN', 'PLANNER'],
     items: [
       {
-        labelKey: 'nav.optimization',
-        defaultLabel: 'Plan Optimization',
-        path: '/optimization',
-        icon: GitCompare,
-        badge: 'CP-SAT',
-        priorityForRole: 'ADMIN',
-        tooltipDesc: 'Google OR-Tools CP-SAT discrete optimization for zero-conflict block plans',
-      },
-      {
         labelKey: 'nav.simulation',
-        defaultLabel: 'What-If Simulation',
+        defaultLabel: 'AI Insights & What-If',
         path: '/simulation',
         icon: Film,
         tooltipDesc: 'Simulate cascading train delays under varying maintenance duration windows',
       },
       {
-        labelKey: 'nav.scenarios',
-        defaultLabel: 'Scenario Catalog',
-        path: '/scenarios',
-        icon: ClipboardList,
-        tooltipDesc: 'Pre-configured division incident playbooks and weather emergency plans',
-      },
-      {
         labelKey: 'nav.reports',
-        defaultLabel: 'Official Reports',
+        defaultLabel: 'Reports & Circulars',
         path: '/reports',
         icon: FileText,
         priorityForRole: 'ADMIN',
         tooltipDesc: 'Generate statutory Railway Board joint circular certifications and logs',
       },
+      {
+        labelKey: 'nav.audit',
+        defaultLabel: 'Audit Logs',
+        path: '/audit',
+        icon: FileCheck2,
+        priorityForRole: 'ADMIN',
+        allowedRoles: ['ADMIN', 'PLANNER'],
+        tooltipDesc: 'Immutable officer sign-off trail, cryptographically logged for safety inspection',
+      },
     ],
   },
   {
     titleKey: 'nav.admin_compliance',
-    defaultTitle: 'ADMINISTRATION & COMPLIANCE',
+    defaultTitle: 'SYSTEM ADMINISTRATION',
     allowedRoles: ['ADMIN'],
     items: [
       {
@@ -183,15 +194,6 @@ const navSections: NavSection[] = [
         allowedRoles: ['ADMIN'],
         tooltipDesc: 'Configure divisional parameters, safety interlocking, and solver constraints',
       },
-      {
-        labelKey: 'nav.audit',
-        defaultLabel: 'Audit Compliance',
-        path: '/audit',
-        icon: FileCheck2,
-        priorityForRole: 'ADMIN',
-        allowedRoles: ['ADMIN'],
-        tooltipDesc: 'Immutable officer sign-off trail, cryptographically logged for safety inspection',
-      },
     ],
   },
 ]
@@ -210,8 +212,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       ? { label: t('role.badge.worker', 'FIELD P-WAY FOCUS'), icon: HardHat, color: 'text-rose-300 border-rose-400/40 bg-rose-950/40' }
       : user?.role === 'PLANNER'
       ? { label: t('role.badge.ops', 'TRAIN CONTROL FOCUS'), icon: Radio, color: 'text-blue-300 border-blue-400/40 bg-blue-950/40' }
-      : user?.role === 'VIEWER'
-      ? { label: t('role.badge.viewer', 'SAFETY OBSERVER'), icon: Eye, color: 'text-teal-300 border-teal-400/40 bg-teal-950/40' }
       : { label: t('role.badge.admin', 'SANCTION AUTHORITY'), icon: Building2, color: 'text-amber-300 border-amber-400/40 bg-amber-950/40' }
 
   return (
@@ -266,8 +266,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 ? '#3d0c14'
                 : user?.role === 'PLANNER'
                 ? '#082040'
-                : user?.role === 'VIEWER'
-                ? '#08332f'
                 : '#2d1f05',
           }}
         >

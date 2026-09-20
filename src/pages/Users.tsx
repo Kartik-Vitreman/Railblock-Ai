@@ -52,7 +52,7 @@ export function Users() {
   // Modals
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null)
-  const [targetRole, setTargetRole] = useState<UserRole>('VIEWER')
+  const [targetRole, setTargetRole] = useState<UserRole>('WORKER')
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState({
@@ -233,8 +233,8 @@ export function Users() {
         return <Radio className="h-3.5 w-3.5 text-blue-600" />
       case 'WORKER':
         return <HardHat className="h-3.5 w-3.5 text-rose-600" />
-      case 'VIEWER':
-        return <Eye className="h-3.5 w-3.5 text-teal-600" />
+      default:
+        return <Building2 className="h-3.5 w-3.5 text-slate-600" />
     }
   }
 
@@ -254,7 +254,7 @@ export function Users() {
               <p className="text-xs text-slate-500">
                 {t(
                   'users.subtitle',
-                  'Manage railway officers, assign clearance roles (ADMIN, PLANNER, WORKER, VIEWER), and audit permissions.',
+                  'Manage railway officers, assign clearance roles (ADMIN, PLANNER, WORKER), and audit permissions.',
                 )}
               </p>
             </div>
@@ -334,7 +334,6 @@ export function Users() {
             <option value="ADMIN">ADMIN (Sr. DOM)</option>
             <option value="PLANNER">PLANNER (Controller)</option>
             <option value="WORKER">WORKER (SSE P-Way)</option>
-            <option value="VIEWER">VIEWER (Observer)</option>
           </select>
         </div>
       </div>
@@ -569,29 +568,6 @@ export function Users() {
                       </div>
                     </div>
                   </label>
-
-                  <label
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                      targetRole === 'VIEWER' ? 'border-teal-600 bg-teal-50/50' : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value="VIEWER"
-                      checked={targetRole === 'VIEWER'}
-                      onChange={() => setTargetRole('VIEWER')}
-                      className="mt-0.5"
-                    />
-                    <div>
-                      <div className="font-bold text-xs text-teal-800">
-                        {t('users.role_viewer_option', 'VIEWER — Station Superintendent / Read-Only Observer')}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Operational read-only visibility, report safety defects and operational complaints.
-                      </div>
-                    </div>
-                  </label>
                 </div>
               </div>
 
@@ -767,7 +743,6 @@ export function Users() {
                     <option value="ADMIN">ADMIN (Sr. DOM / Approver)</option>
                     <option value="PLANNER">PLANNER (Section Controller)</option>
                     <option value="WORKER">WORKER (SSE P-Way / Field)</option>
-                    <option value="VIEWER">VIEWER (Station Observer)</option>
                   </select>
                 </div>
               </div>

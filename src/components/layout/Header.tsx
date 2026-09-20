@@ -14,7 +14,6 @@ import {
   Globe,
   Menu,
   Check,
-  Eye,
   ShieldCheck,
 } from 'lucide-react'
 
@@ -60,19 +59,15 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
       ? t('role.admin', 'ADMIN (SR. DOM)')
       : user?.role === 'PLANNER'
       ? t('role.ops', 'PLANNER (CONTROLLER)')
-      : user?.role === 'WORKER'
-      ? t('role.worker', 'WORKER (FIELD STAFF)')
-      : t('role.viewer', 'VIEWER (OBSERVER)')
+      : t('role.worker', 'WORKER (FIELD STAFF)')
 
   const roleIcon =
     user?.role === 'ADMIN' ? (
       <Building2 className="h-3.5 w-3.5 text-amber-300" />
     ) : user?.role === 'PLANNER' ? (
       <Radio className="h-3.5 w-3.5 text-blue-300" />
-    ) : user?.role === 'WORKER' ? (
-      <HardHat className="h-3.5 w-3.5 text-rose-300" />
     ) : (
-      <Eye className="h-3.5 w-3.5 text-teal-300" />
+      <HardHat className="h-3.5 w-3.5 text-rose-300" />
     )
 
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0]

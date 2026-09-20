@@ -639,39 +639,6 @@ export function Login() {
                       Clearance: Field Track Maintenance • Work Orders • USFD Rail Flaw Register
                     </div>
                   </div>
-
-                  {/* 4. VIEWER CARD */}
-                  <div className="bg-white p-3 rounded-lg border border-teal-200 shadow-sm hover:border-teal-400 transition-all">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-teal-100 text-teal-800">
-                          <Eye className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-teal-800">VIEWER</span>
-                            <Badge className="bg-teal-100 text-teal-800 border border-teal-300 text-[9px] py-0 px-1.5 font-bold">
-                              Station Staff
-                            </Badge>
-                          </div>
-                          <div className="text-[10px] text-slate-600 font-mono">
-                            viewer@railnet.gov.in (or: viewer)
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleFillCredentials('VIEWER')}
-                        className="text-[10px] h-7 px-2 border-teal-400/40 text-teal-800 hover:bg-teal-50 font-bold cursor-pointer"
-                      >
-                        {t('login.fill_creds', 'Fill Credentials')}
-                      </Button>
-                    </div>
-                    <div className="mt-1.5 text-[10px] text-slate-500">
-                      Clearance: Read-Only Dashboard • Station Problem & Defect Reporting
-                    </div>
-                  </div>
                 </div>
               </div>
 

@@ -8,6 +8,7 @@ import { Assets } from '@/pages/Assets'
 import { Maintenance } from '@/pages/Maintenance'
 import { TrainOperations } from '@/pages/TrainOperations'
 import { Network } from '@/pages/Network'
+import { Resources } from '@/pages/Resources'
 
 import { BlockPlanner } from '@/pages/BlockPlanner'
 import { Optimization } from '@/pages/Optimization'
@@ -16,7 +17,6 @@ import { Scenarios } from '@/pages/Scenarios'
 import { Alerts } from '@/pages/Alerts'
 import { Reports } from '@/pages/Reports'
 import { Audit } from '@/pages/Audit'
-import { Complaints } from '@/pages/Complaints'
 import { Users } from '@/pages/Users'
 import { Settings } from '@/pages/Settings'
 
@@ -33,18 +33,26 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           
-          <Route path="/blocks" element={<BlockPlanner />} />
+          {/* Operations Core */}
           <Route path="/assets" element={<Assets />} />
+          <Route path="/tasks" element={<Maintenance />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/trains" element={<TrainOperations />} />
+          <Route path="/corridors" element={<Network />} />
           <Route path="/network" element={<Network />} />
+          <Route path="/resources" element={<Resources />} />
+
+          {/* Block Management & Multi-Horizon Plan Optimization */}
+          <Route path="/blocks" element={<BlockPlanner />} />
           <Route path="/optimization" element={<Optimization />} />
+          <Route path="/ai-insights" element={<Simulation />} />
           <Route path="/simulation" element={<Simulation />} />
           <Route path="/scenarios" element={<Scenarios />} />
           <Route path="/alerts" element={<Alerts />} />
+          
+          {/* Governance, Reports & Administration */}
           <Route path="/reports" element={<Reports />} />
           <Route path="/audit" element={<Audit />} />
-          <Route path="/complaints" element={<Complaints />} />
           <Route path="/users" element={<Users />} />
           <Route path="/settings" element={<Settings />} />
           
